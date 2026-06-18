@@ -1,0 +1,19 @@
+{
+  "nav": {
+    "home": "Gida", "about": "Game", "academics": "Ilimi",
+    "campusLife": "Rayuwar Makaranta", "admissions": "Shiga Makaranta", "news": "Labarai",
+    "contact": "Tuntuɓar", "applyNow": "Nemi Shiga",
+    "followJourney": "Bi tafiyarmu:", "backToWebsite": "Koma shafin yanar gizo"
+  },
+  "footer": {
+    "readyTitle": "A shirye kuke don kallon yaron ku",
+    "readyTitle2": "yana tashi sama da iyaka?",
+    "readyDesc": "Kofar shiga don zangon 2026/2027 yanzu an buɗe. Shirya ziyara yau.",
+    "explore": "Bincike", "programs": "Shirye-shirye", "resources": "Albarkatu",
+    "newsletter": "Wasikar Glider", "yourEmail": "Email ɗin ku",
+    "subscribe": "Bi",
+    "subscribed": "Kun bi! Kula da akwatin wasiƙarku don sabbin Glider.",
+    "rightsReserved": "Dukkan haƙƙoƙi an tanada.", "madeWith": "An yi da",
+    "inNigeria": "a Nsukka, Najeriya", "comingSoon": "Yana zuwa nan ba da daɗewa ba"
+  }
+}

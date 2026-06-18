@@ -2,18 +2,29 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar, FileText, ClipboardCheck, Sparkles } from "lucide-react";
-import { ADMISSION_STEPS, SCHOOL } from "./data";
 import { Button } from "@/components/ui/button";
+import type { SiteSettings, AdmissionStep } from "@prisma/client";
+import { ApplyButton } from "./apply-button";
 
 const STEP_ICONS = [Calendar, FileText, ClipboardCheck, Sparkles];
 
-export function Admissions() {
+export function Admissions({
+  settings,
+  steps,
+}: {
+  settings: SiteSettings | null;
+  steps: AdmissionStep[];
+}) {
+  if (!steps.length) return null;
+
+  const heading = settings?.admissionsHeading || "Four simple steps to becoming a Glider.";
+  const paragraph = settings?.admissionsParagraph || "";
+  const deadline = settings?.admissionsDeadline || "Applications close July 31, 2026";
+  const openDay = settings?.admissionsOpenDay || "Open Day: Saturday, 18 July 2026";
+  const admissionsEmail = settings?.admissionsEmail || "admissions@trailgliders.edu.ng";
+
   return (
-    <section
-      id="admissions"
-      className="py-24 lg:py-32 bg-white relative overflow-hidden"
-    >
-      {/* Background accent */}
+    <section id="admissions" className="py-24 lg:py-32 bg-white relative overflow-hidden">
       <div className="absolute top-0 right-0 w-1/2 h-full opacity-[0.03] pointer-events-none">
         <div
           className="absolute inset-0"
@@ -27,7 +38,6 @@ export function Admissions() {
 
       <div className="max-w-7xl mx-auto px-6 relative">
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
-          {/* Left: Heading + CTA */}
           <div className="lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
             <motion.span
               initial={{ opacity: 0, y: 10 }}
@@ -45,8 +55,8 @@ export function Admissions() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.05] text-balance"
             >
-              Four simple steps to
-              <span className="block gradient-text-orange">becoming a Glider.</span>
+              {heading.split("Glider")[0]}
+              <span className="block gradient-text-orange">Glider.</span>
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -55,12 +65,9 @@ export function Admissions() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="mt-5 text-lg text-muted-foreground leading-relaxed"
             >
-              Whether you are joining us from Nursery or transferring into Primary 5,
-              we make the admissions journey warm, transparent, and welcoming —
-              just like our school.
+              {paragraph}
             </motion.p>
 
-            {/* Info card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -73,9 +80,7 @@ export function Admissions() {
                 <div className="text-xs uppercase tracking-[0.18em] text-[var(--orange-light)] font-bold">
                   2026/2027 Session
                 </div>
-                <div className="mt-2 font-serif text-2xl font-bold">
-                  Applications close July 31, 2026
-                </div>
+                <div className="mt-2 font-serif text-2xl font-bold">{deadline}</div>
                 <div className="mt-1 text-sm text-white/70">
                   Limited spots available across all stages.
                 </div>
@@ -83,7 +88,7 @@ export function Admissions() {
                 <div className="mt-5 space-y-2 text-sm text-white/85">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-[var(--orange)]" />
-                    Open Day: Saturday, 18 July 2026
+                    {openDay}
                   </div>
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-[var(--orange)]" />
@@ -91,41 +96,40 @@ export function Admissions() {
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
-                  className="mt-6 w-full bg-gradient-to-r from-[var(--orange)] to-[var(--orange-dark)] hover:opacity-95 text-white rounded-full h-12"
-                >
-                  Start Your Application
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <div className="mt-6">
+                  <ApplyButton
+                    settings={settings}
+                    size="default"
+                    className="w-full hover:opacity-95 h-12"
+                  >
+                    Start Your Application
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </ApplyButton>
+                </div>
               </div>
             </motion.div>
           </div>
 
-          {/* Right: Timeline */}
           <div className="lg:col-span-7">
             <div className="relative">
-              {/* Vertical line */}
               <div className="absolute left-[28px] top-2 bottom-2 w-px bg-gradient-to-b from-[var(--orange)] via-[var(--orange)]/40 to-transparent" />
 
               <div className="space-y-6">
-                {ADMISSION_STEPS.map((step, i) => {
-                  const Icon = STEP_ICONS[i];
+                {steps.map((step, i) => {
+                  const Icon = STEP_ICONS[i] || Sparkles;
                   return (
                     <motion.div
-                      key={step.step}
+                      key={step.id}
                       initial={{ opacity: 0, x: 30 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.5, delay: i * 0.1 }}
                       className="relative pl-20"
                     >
-                      {/* Number circle */}
                       <div className="absolute left-0 top-0 h-14 w-14 rounded-full bg-white border-2 border-[var(--orange)] flex items-center justify-center shadow-lg">
                         <Icon className="h-5 w-5 text-[var(--orange-dark)]" />
                       </div>
 
-                      {/* Card */}
                       <div className="bg-white rounded-3xl p-7 shadow-md border border-black/5 hover:shadow-xl hover:border-[var(--orange)]/20 transition-all">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
@@ -149,7 +153,6 @@ export function Admissions() {
               </div>
             </div>
 
-            {/* Quick contact strip */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -161,10 +164,10 @@ export function Admissions() {
                 <div className="text-muted-foreground">Our admissions team replies within 24 hours.</div>
               </div>
               <a
-                href={`mailto:${SCHOOL.admissionsEmail}`}
+                href={`mailto:${admissionsEmail}`}
                 className="text-sm font-semibold text-[var(--orange-dark)] hover:text-[var(--orange)]"
               >
-                {SCHOOL.admissionsEmail}
+                {admissionsEmail}
               </a>
             </motion.div>
           </div>

@@ -1,0 +1,19 @@
+{
+  "nav": {
+    "home": "Home", "about": "About", "academics": "Academics",
+    "campusLife": "Campus Life", "admissions": "Admissions", "news": "News",
+    "contact": "Contact", "applyNow": "Apply Now",
+    "followJourney": "Follow our journey:", "backToWebsite": "Back to website"
+  },
+  "footer": {
+    "readyTitle": "Ready to watch your child",
+    "readyTitle2": "glide beyond limits?",
+    "readyDesc": "Admissions for the 2026/2027 session are now open. Schedule a visit today.",
+    "explore": "Explore", "programs": "Programs", "resources": "Resources",
+    "newsletter": "Glider Newsletter", "yourEmail": "Your email",
+    "subscribe": "Subscribe",
+    "subscribed": "You're subscribed! Watch your inbox for Glider updates.",
+    "rightsReserved": "All rights reserved.", "madeWith": "Made with",
+    "inNigeria": "in Nsukka, Nigeria", "comingSoon": "Coming soon"
+  }
+}

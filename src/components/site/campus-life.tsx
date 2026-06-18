@@ -2,9 +2,11 @@
 
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { CAMPUS_LIFE } from "./data";
+import type { CampusItem } from "@prisma/client";
 
-export function CampusLife() {
+export function CampusLife({ items }: { items: CampusItem[] }) {
+  if (!items.length) return null;
+
   return (
     <section id="campus-life" className="py-24 lg:py-32 bg-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
@@ -42,10 +44,8 @@ export function CampusLife() {
           </motion.p>
         </div>
 
-        {/* Mosaic grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
-          {CAMPUS_LIFE.map((item, i) => {
-            // Make a varied mosaic: index 0 and 5 span 2 cols, 3 spans 2 rows
+          {items.map((item, i) => {
             const spanClass =
               i === 0
                 ? "col-span-2 row-span-2"
@@ -55,7 +55,7 @@ export function CampusLife() {
 
             return (
               <motion.div
-                key={item.title}
+                key={item.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -68,10 +68,8 @@ export function CampusLife() {
                     alt={item.title}
                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  {/* Gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[var(--navy-dark)]/90 via-[var(--navy)]/30 to-transparent opacity-80 group-hover:opacity-95 transition-opacity duration-500" />
 
-                  {/* Content */}
                   <div className="absolute inset-0 flex flex-col justify-end p-5 lg:p-6">
                     <div className="transform transition-transform duration-500 group-hover:-translate-y-1">
                       <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--orange)]/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider w-fit">
@@ -86,7 +84,6 @@ export function CampusLife() {
                       </p>
                     </div>
 
-                    {/* Hover arrow */}
                     <div className="absolute top-5 right-5 h-10 w-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
                       <ArrowUpRight className="h-5 w-5 text-white" />
                     </div>
@@ -97,7 +94,6 @@ export function CampusLife() {
           })}
         </div>
 
-        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -107,7 +103,7 @@ export function CampusLife() {
           <p className="text-muted-foreground">
             Want to see Campus Life in person?{" "}
             <button
-              onClick={() => document.getElementById("admissions")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
               className="font-semibold text-[var(--orange-dark)] hover:text-[var(--orange)] underline-offset-4 hover:underline"
             >
               Book a campus tour →

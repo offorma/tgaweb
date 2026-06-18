@@ -14,70 +14,117 @@ import {
   Youtube,
   Twitter,
 } from "lucide-react";
-import { SCHOOL } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import type { SiteSettings } from "@prisma/client";
+import { BotDefense, type BotDefenseTokens } from "./bot-defense";
 
-const CONTACT_INFO = [
-  {
-    icon: MapPin,
-    label: "Visit Us",
-    value: SCHOOL.address,
-    href: `https://maps.google.com/?q=${encodeURIComponent(SCHOOL.address)}`,
-  },
-  {
-    icon: Phone,
-    label: "Call Us",
-    value: SCHOOL.phone,
-    sub: SCHOOL.phoneAlt,
-    href: `tel:${SCHOOL.phone.replace(/\s/g, "")}`,
-  },
-  {
-    icon: Mail,
-    label: "Email Us",
-    value: SCHOOL.email,
-    sub: SCHOOL.admissionsEmail,
-    href: `mailto:${SCHOOL.email}`,
-  },
-  {
-    icon: Clock,
-    label: "Office Hours",
-    value: SCHOOL.hours,
-    sub: "Saturday: 9 AM – 1 PM (by appointment)",
-  },
-];
-
-const SOCIAL = [
-  { icon: Facebook, label: "Facebook", href: "#" },
-  { icon: Instagram, label: "Instagram", href: "#" },
-  { icon: Youtube, label: "YouTube", href: "#" },
-  { icon: Twitter, label: "Twitter", href: "#" },
-];
-
-export function Contact() {
+export function Contact({ settings }: { settings: SiteSettings | null }) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [botTokens, setBotTokens] = useState<BotDefenseTokens | null>(null);
+
+  const address = settings?.address || "";
+  const phone = settings?.phone || "";
+  const phoneAlt = settings?.phoneAlt || "";
+
+  // Build social links from settings — empty URLs are filtered out
+  const SOCIAL = [
+    { icon: Facebook, label: "Facebook", href: settings?.facebookUrl || "" },
+    { icon: Instagram, label: "Instagram", href: settings?.instagramUrl || "" },
+    { icon: Youtube, label: "YouTube", href: settings?.youtubeUrl || "" },
+    { icon: Twitter, label: "Twitter", href: settings?.twitterUrl || "" },
+  ].filter((s) => s.href);
+  const email = settings?.email || "";
+  const admissionsEmail = settings?.admissionsEmail || "";
+  const hours = settings?.hours || "";
+
+  const CONTACT_INFO = [
+    {
+      icon: MapPin,
+      label: "Visit Us",
+      value: address,
+      href: `https://maps.google.com/?q=${encodeURIComponent(address)}`,
+    },
+    {
+      icon: Phone,
+      label: "Call Us",
+      value: phone,
+      sub: phoneAlt,
+      href: `tel:${phone.replace(/\s/g, "")}`,
+    },
+    {
+      icon: Mail,
+      label: "Email Us",
+      value: email,
+      sub: admissionsEmail,
+      href: `mailto:${email}`,
+    },
+    {
+      icon: Clock,
+      label: "Office Hours",
+      value: hours,
+      sub: "Saturday: 9 AM – 1 PM (by appointment)",
+    },
+  ];
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!botTokens) {
+      toast.error("Please complete the security check.");
+      return;
+    }
     setLoading(true);
-    // Simulate async submission
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    setSubmitted(true);
-    toast.success("Message sent! Our team will respond within 24 hours.");
-    (e.target as HTMLFormElement).reset();
-    setTimeout(() => setSubmitted(false), 5000);
+
+    try {
+      const formData = new FormData(e.target as HTMLFormElement);
+      const payload = {
+        firstName: formData.get("firstName") as string,
+        lastName: formData.get("lastName") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        subject: formData.get("subject") as string,
+        message: formData.get("message") as string,
+        // Bot defense tokens
+        mathToken: botTokens.mathToken,
+        mathAnswer: botTokens.mathAnswer,
+        timeToken: botTokens.timeToken,
+        turnstileToken: botTokens.turnstileToken,
+        // Honeypots
+        company: botTokens.honeypots.company,
+        website_url: botTokens.honeypots.website_url,
+        fax_number: botTokens.honeypots.fax_number,
+      };
+
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Submission failed");
+      }
+
+      setSubmitted(true);
+      toast.success("Message sent! Our team will respond within 24 hours.");
+      (e.target as HTMLFormElement).reset();
+      setTimeout(() => setSubmitted(false), 5000);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to send message");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <section id="contact" className="py-24 lg:py-32 bg-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-14">
-          {/* Left: Info */}
           <div className="lg:col-span-5">
             <motion.span
               initial={{ opacity: 0, y: 10 }}
@@ -109,7 +156,6 @@ export function Contact() {
               Reach out — our friendly team will respond within one business day.
             </motion.p>
 
-            {/* Contact cards */}
             <div className="mt-10 space-y-4">
               {CONTACT_INFO.map((info, i) => {
                 const Icon = info.icon;
@@ -153,26 +199,29 @@ export function Contact() {
               })}
             </div>
 
-            {/* Social */}
-            <div className="mt-8 flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Follow us:</span>
-              {SOCIAL.map((s) => {
-                const Icon = s.icon;
-                return (
-                  <a
-                    key={s.label}
-                    href={s.href}
-                    aria-label={s.label}
-                    className="h-10 w-10 rounded-full bg-[var(--navy)]/5 hover:bg-[var(--orange)] flex items-center justify-center transition-all hover:scale-110"
-                  >
-                    <Icon className="h-4 w-4 text-[var(--navy)] hover:text-white" />
-                  </a>
-                );
-              })}
-            </div>
+            {SOCIAL.length > 0 && (
+              <div className="mt-8 flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Follow us:</span>
+                {SOCIAL.map((s) => {
+                  const Icon = s.icon;
+                  const href = s.href.startsWith("http") ? s.href : `https://${s.href}`;
+                  return (
+                    <a
+                      key={s.label}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={s.label}
+                      className="h-10 w-10 rounded-full bg-[var(--navy)]/5 hover:bg-[var(--orange)] flex items-center justify-center transition-all hover:scale-110"
+                    >
+                      <Icon className="h-4 w-4 text-[var(--navy)] hover:text-white" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Right: Form */}
           <div className="lg:col-span-7">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -181,7 +230,6 @@ export function Contact() {
               transition={{ duration: 0.6 }}
               className="relative bg-gradient-to-br from-[var(--navy)] to-[var(--navy-dark)] rounded-3xl p-8 lg:p-10 shadow-2xl overflow-hidden"
             >
-              {/* Decorative orbs */}
               <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-[var(--orange)]/20 blur-3xl" />
               <div className="absolute -bottom-12 -left-12 h-56 w-56 rounded-full bg-[var(--gold)]/10 blur-3xl" />
 
@@ -203,6 +251,7 @@ export function Contact() {
                         id="firstName"
                         name="firstName"
                         required
+                        maxLength={80}
                         placeholder="Adaora"
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-[var(--orange)]"
                       />
@@ -215,6 +264,7 @@ export function Contact() {
                         id="lastName"
                         name="lastName"
                         required
+                        maxLength={80}
                         placeholder="Okafor"
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-[var(--orange)]"
                       />
@@ -231,6 +281,7 @@ export function Contact() {
                         name="email"
                         type="email"
                         required
+                        maxLength={120}
                         placeholder="you@example.com"
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-[var(--orange)]"
                       />
@@ -243,6 +294,7 @@ export function Contact() {
                         id="phone"
                         name="phone"
                         type="tel"
+                        maxLength={40}
                         placeholder="+234 800 000 0000"
                         className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-[var(--orange)]"
                       />
@@ -260,9 +312,7 @@ export function Contact() {
                       defaultValue=""
                       className="w-full h-10 rounded-md bg-white/10 border border-white/20 text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--orange)] focus:border-[var(--orange)] [&>option]:text-[var(--navy)]"
                     >
-                      <option value="" disabled>
-                        Select an option
-                      </option>
+                      <option value="" disabled>Select an option</option>
                       <option value="admissions">Admissions enquiry</option>
                       <option value="tour">Booking a campus tour</option>
                       <option value="nursery">Nursery program</option>
@@ -281,15 +331,19 @@ export function Contact() {
                       id="message"
                       name="message"
                       required
+                      maxLength={5000}
                       rows={4}
                       placeholder="Tell us about your child and what you'd like to know..."
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-[var(--orange)] resize-none"
                     />
                   </div>
 
+                  {/* Bot defense: math captcha + time-trap + honeypots + optional Turnstile */}
+                  <BotDefense onTokensChange={setBotTokens} />
+
                   <Button
                     type="submit"
-                    disabled={loading || submitted}
+                    disabled={loading || submitted || !botTokens?.mathAnswer}
                     className="w-full h-12 bg-gradient-to-r from-[var(--orange)] to-[var(--orange-dark)] hover:opacity-95 text-white rounded-full shadow-lg shadow-orange-500/30"
                   >
                     {loading ? (

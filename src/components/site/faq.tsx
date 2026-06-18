@@ -7,10 +7,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { FAQS } from "./data";
 import { HelpCircle } from "lucide-react";
+import type { Faq } from "@prisma/client";
 
-export function FAQ() {
+export function FAQ({ faqs }: { faqs: Faq[] }) {
+  if (!faqs.length) return null;
+
   return (
     <section className="py-24 lg:py-32 bg-white relative overflow-hidden">
       <div className="max-w-4xl mx-auto px-6">
@@ -54,17 +56,17 @@ export function FAQ() {
           className="mt-12"
         >
           <Accordion type="single" collapsible className="space-y-4">
-            {FAQS.map((faq, i) => (
+            {faqs.map((faq, i) => (
               <AccordionItem
-                key={i}
+                key={faq.id}
                 value={`item-${i}`}
                 className="bg-[var(--cream)] border border-black/5 rounded-2xl px-6 shadow-sm data-[state=open]:shadow-md transition-all data-[state=open]:border-[var(--orange)]/30"
               >
                 <AccordionTrigger className="text-left font-serif text-lg font-bold text-[var(--navy)] hover:no-underline py-5">
-                  {faq.q}
+                  {faq.question}
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground leading-relaxed pb-5">
-                  {faq.a}
+                  {faq.answer}
                 </AccordionContent>
               </AccordionItem>
             ))}

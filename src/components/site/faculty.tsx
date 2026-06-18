@@ -2,12 +2,13 @@
 
 import { motion } from "framer-motion";
 import { Quote } from "lucide-react";
-import { FACULTY } from "./data";
+import type { Faculty } from "@prisma/client";
 
-export function Faculty() {
+export function Faculty({ faculty }: { faculty: Faculty[] }) {
+  if (!faculty.length) return null;
+
   return (
     <section className="py-24 lg:py-32 bg-mesh-cream relative overflow-hidden">
-      {/* Decorative element */}
       <div className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/3 opacity-[0.04] pointer-events-none">
         <div className="h-[700px] w-[700px] rounded-full border-[40px] border-[var(--navy)]" />
       </div>
@@ -46,16 +47,15 @@ export function Faculty() {
         </div>
 
         <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {FACULTY.map((member, i) => (
+          {faculty.map((member, i) => (
             <motion.div
-              key={member.name}
+              key={member.id}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className="group relative bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 border border-black/5"
             >
-              {/* Portrait */}
               <div className="relative aspect-[4/5] overflow-hidden">
                 <img
                   src={member.image}
@@ -64,7 +64,6 @@ export function Faculty() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--navy-dark)] via-[var(--navy-dark)]/30 to-transparent opacity-90" />
 
-                {/* Quote */}
                 <div className="absolute inset-x-0 bottom-0 p-5 transform transition-transform duration-500 translate-y-2 group-hover:translate-y-0">
                   <Quote className="h-5 w-5 text-[var(--orange)] mb-2 fill-[var(--orange)]" />
                   <p className="text-white/95 text-xs italic leading-relaxed line-clamp-3">
@@ -73,7 +72,6 @@ export function Faculty() {
                 </div>
               </div>
 
-              {/* Info */}
               <div className="p-5">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--orange-dark)]">
                   {member.role}
@@ -86,7 +84,6 @@ export function Faculty() {
                 </p>
               </div>
 
-              {/* Bottom accent */}
               <div className="h-1 w-full bg-gradient-to-r from-[var(--orange)] to-[var(--gold)] transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
             </motion.div>
           ))}

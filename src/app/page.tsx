@@ -13,27 +13,37 @@ import { News } from "@/components/site/news";
 import { FAQ } from "@/components/site/faq";
 import { Contact } from "@/components/site/contact";
 import { Footer } from "@/components/site/footer";
+import { getSiteData } from "@/components/site/data-server";
 
-export default function Home() {
+// Revalidate every 60 seconds so admin edits appear within a minute
+export const revalidate = 60;
+
+export default async function Home() {
+  // Fetch all site content from DB on the server
+  const data = await getSiteData();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
+      <Navbar settings={data.settings} />
       <main className="flex-1">
-        <Hero />
-        <Marquee />
-        <About />
-        <Stats />
+        <Hero settings={data.settings} slides={data.slides} />
+        <Marquee settings={data.settings} />
+        <About settings={data.settings} values={data.values} />
+        <Stats stats={data.stats} />
         <WhyUs />
-        <Academics />
-        <CampusLife />
-        <Faculty />
-        <Testimonials />
-        <Admissions />
-        <News />
-        <FAQ />
-        <Contact />
+        <Academics programs={data.programs} />
+        <CampusLife items={data.campusItems} />
+        <Faculty faculty={data.faculty} />
+        <Testimonials testimonials={data.testimonials} />
+        <Admissions
+          settings={data.settings}
+          steps={data.admissionSteps}
+        />
+        <News news={data.news} />
+        <FAQ faqs={data.faqs} />
+        <Contact settings={data.settings} />
       </main>
-      <Footer />
+      <Footer settings={data.settings} />
     </div>
   );
 }

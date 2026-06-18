@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Playfair_Display, Cinzel } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { Providers } from "@/components/providers";
+import { getLocale, getMessages } from "next-intl/server";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -56,18 +59,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${plusJakarta.variable} ${playfair.variable} ${cinzel.variable} antialiased bg-background text-foreground`}
       >
-        {children}
-        <Toaster />
+        <Providers locale={locale} messages={messages}>
+          {children}
+          <Toaster />
+          <SonnerToaster position="top-right" richColors />
+        </Providers>
       </body>
     </html>
   );

@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Trail Gliders Academy — Prisma schema
+// All site content is stored in the DB so admins can edit via /admin
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +10,251 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============ Auth ============
+
 model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  passwordHash    String
+  role            String   @default("EDITOR") // ADMIN | EDITOR — least-privilege default
+  failedAttempts  Int      @default(0)
+  lockedUntil     DateTime?
+  lastLoginAt     DateTime?
+  // 2FA (TOTP)
+  twoFactorSecret       String?   // encrypted base32 secret
+  twoFactorEnabled      Boolean   @default(false)
+  twoFactorBackupCodes  String?   // encrypted JSON array of hashed codes
+  twoFactorEnabledAt    DateTime?
+  // Account lifecycle
+  isActive              Boolean   @default(true)   // soft disable without delete
+  mustEnable2FA         Boolean   @default(false)  // forced 2FA setup on next login
+  mustChangePassword    Boolean   @default(false)  // forced password change on next login
+  createdBy             String?   // user id of admin who created this account
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  auditLogs       AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model SecurityPolicy {
+  id                          String   @id @default("singleton")
+  enforceTwoFactorForAdmins   Boolean  @default(true)
+  enforceTwoFactorForEditors  Boolean  @default(false)
+  minPasswordLength           Int      @default(12)
+  sessionTimeoutHours         Int      @default(8)
+  updatedAt        DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  email     String    // the email the reset was requested for
+  tokenHash String    @unique // SHA-256 hash of the token (never store plaintext)
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "login.success", "content.update", "content.delete"
+  entity    String?
+  entityId  String?
+  ip        String?
+  userAgent String?
+  meta      String?
+  createdAt DateTime @default(now())
+}
+
+// ============ Site content ============
+
+model SiteSettings {
+  id              String   @id @default("singleton")
+  schoolName      String   @default("Trail Gliders Academy")
+  shortName       String   @default("TGA")
+  tagline         String   @default("Excellence as You Glide Beyond Limits")
+  motto           String   @default("Knowledge • Character • Service")
+  founded         Int      @default(2009)
+  location        String   @default("Nsukka, Enugu State, Nigeria")
+  address         String   @default("15 Gliders Avenue, University Town, Nsukka, Enugu State, Nigeria")
+  phone           String   @default("+234 803 456 7890")
+  phoneAlt        String   @default("+234 701 234 5678")
+  email           String   @default("info@trailgliders.edu.ng")
+  admissionsEmail String   @default("admissions@trailgliders.edu.ng")
+  hours           String   @default("Monday – Friday: 7:30 AM – 3:30 PM")
+  crestUrl        String   @default("/crest/school-crest.png")
+  // Hero
+  heroBadge       String   @default("Admissions Open for 2026/2027 Session")
+  heroTitle1      String   @default("Where Young Minds")
+  heroTitle2      String   @default("Glide Beyond Limits")
+  heroDescription String
+  // About
+  aboutHeading    String
+  aboutParagraph  String
+  missionText     String
+  visionText      String
+  // Admissions
+  admissionsHeading   String
+  admissionsParagraph String
+  admissionsDeadline  String   @default("Applications close July 31, 2026")
+  admissionsOpenDay   String   @default("Open Day: Saturday, 18 July 2026")
+  // Apply Now button — globally configurable CTA
+  applyButtonEnabled  Boolean  @default(true)
+  applyButtonLabel    String   @default("Apply Now")
+  applyButtonType     String   @default("scroll") // scroll | external | mailto
+  applyButtonUrl      String   @default("#admissions") // section anchor, https URL, or mailto:
+  applyButtonStyle    String   @default("primary") // primary | outline
+  // Social media URLs (empty string = hide the icon)
+  facebookUrl         String   @default("")
+  instagramUrl        String   @default("")
+  youtubeUrl          String   @default("")
+  twitterUrl          String   @default("")
+  // Footer "Resources" links (empty string = hide the link)
+  resourceAdmissionsPortal  String @default("")
+  resourceFeeStructure      String @default("")
+  resourceSchoolCalendar    String @default("")
+  resourceParentPortal      String @default("")
+  resourceAlumniNetwork     String @default("")
+  resourceCareers           String @default("")
+  updatedAt        DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
   id        String   @id @default(cuid())
   email     String   @unique
-  name      String?
+  ip        String?
+  userAgent String?
   createdAt DateTime @default(now())
+}
+
+model Stat {
+  id          String   @id @default(cuid())
+  value       Int
+  suffix      String   @default("")
+  label       String
+  description String
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model Value {
+  id          String   @id @default(cuid())
+  icon        String   // lucide icon name
+  title       String
+  description String
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model Program {
+  id          String   @id @default(cuid())
+  name        String
+  ages        String
+  image       String
+  color       String   @default("orange") // orange | navy | gold
+  tagline     String
+  description String
+  features    String   // newline-separated list
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model Faculty {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  image     String
+  bio       String
+  quote     String
+  order     Int      @default(0)
   updatedAt DateTime @updatedAt
 }
 
-model Post {
+model Testimonial {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
+  name      String
+  relation  String
+  quote     String
+  rating    Int      @default(5)
+  order     Int      @default(0)
   updatedAt DateTime @updatedAt
+}
+
+model NewsItem {
+  id        String   @id @default(cuid())
+  date      DateTime
+  category  String   // News | Event
+  tag       String
+  title     String
+  excerpt   String
+  image     String
+  published Boolean  @default(true)
+  order     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model AdmissionStep {
+  id          String   @id @default(cuid())
+  step        String   // "01", "02", ...
+  title       String
+  description String
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model CampusItem {
+  id          String   @id @default(cuid())
+  image       String
+  title       String
+  description String
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model Slide {
+  id              String   @id @default(cuid())
+  image           String
+  videoUrl        String?
+  title           String
+  subtitle        String?
+  badge           String?
+  linkUrl         String?
+  linkLabel       String?
+  transitionType  String   @default("fade") // fade | slide | zoom | curtain
+  duration        Int      @default(6500) // milliseconds per slide
+  textPosition    String   @default("left") // left | center | right
+  parallaxDepth   Int      @default(15) // 0-50, percentage of parallax shift
+  active          Boolean  @default(true)
+  order           Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+// ============ Secrets vault ============
+// Encrypted at rest with AES-256-GCM using SECRETS_MASTER_KEY env var.
+// Only the ciphertext is stored — the plaintext value is never persisted.
+
+model Secret {
+  id            String    @id @default(cuid())
+  key           String    @unique // e.g. SMTP_PASSWORD, PAYSTACK_SECRET_KEY
+  category      String    // app | email | payment | sms | storage
+  description   String?
+  ciphertext    String    // base64(iv) + "." + base64(encrypted) + "." + base64(authTag)
+  previewHint   String?   // last 4 chars of plaintext, shown masked in UI
+  lastRotatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

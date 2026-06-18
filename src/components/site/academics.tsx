@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ArrowRight, Clock, Users } from "lucide-react";
-import { PROGRAMS } from "./data";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { Program } from "@prisma/client";
 
 const COLOR_STYLES: Record<string, { bg: string; text: string; ring: string; chip: string }> = {
   orange: {
@@ -28,15 +28,17 @@ const COLOR_STYLES: Record<string, { bg: string; text: string; ring: string; chi
   },
 };
 
-export function Academics() {
+export function Academics({ programs }: { programs: Program[] }) {
   const [active, setActive] = useState(0);
-  const program = PROGRAMS[active];
-  const colors = COLOR_STYLES[program.color];
+
+  if (!programs.length) return null;
+  const program = programs[Math.min(active, programs.length - 1)];
+  const colors = COLOR_STYLES[program.color] || COLOR_STYLES.orange;
+  const features = program.features.split("\n").filter(Boolean);
 
   return (
     <section id="academics" className="py-24 lg:py-32 bg-mesh-cream relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 relative">
-        {/* Header */}
         <div className="max-w-3xl">
           <motion.span
             initial={{ opacity: 0, y: 10 }}
@@ -69,13 +71,12 @@ export function Academics() {
           </motion.p>
         </div>
 
-        {/* Tab selector */}
         <div className="mt-12 flex flex-wrap gap-3">
-          {PROGRAMS.map((p, i) => {
-            const c = COLOR_STYLES[p.color];
+          {programs.map((p, i) => {
+            const c = COLOR_STYLES[p.color] || COLOR_STYLES.orange;
             return (
               <button
-                key={p.name}
+                key={p.id}
                 onClick={() => setActive(i)}
                 className={cn(
                   "group relative px-5 py-4 rounded-2xl border-2 transition-all text-left",
@@ -116,17 +117,15 @@ export function Academics() {
           })}
         </div>
 
-        {/* Program detail */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={active}
+            key={program.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
             className="mt-10 grid lg:grid-cols-12 gap-8 bg-white rounded-3xl overflow-hidden shadow-xl border border-black/5"
           >
-            {/* Image */}
             <div className="lg:col-span-5 relative h-72 lg:h-auto overflow-hidden">
               <img
                 src={program.image}
@@ -148,7 +147,6 @@ export function Academics() {
               </div>
             </div>
 
-            {/* Content */}
             <div className="lg:col-span-7 p-8 lg:p-10 flex flex-col">
               <p className="text-lg text-muted-foreground leading-relaxed">{program.description}</p>
 
@@ -157,7 +155,7 @@ export function Academics() {
                   Program Highlights
                 </h4>
                 <ul className="mt-4 grid sm:grid-cols-2 gap-3">
-                  {program.features.map((feature) => (
+                  {features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2.5">
                       <div className={cn(
                         "mt-0.5 h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0",
@@ -178,9 +176,8 @@ export function Academics() {
                 <Button
                   onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
                   className={cn(
-                    "rounded-full text-white shadow-lg",
-                    colors.bg,
-                    "hover:opacity-90"
+                    "rounded-full text-white shadow-lg hover:opacity-90",
+                    colors.bg
                   )}
                 >
                   Book a consultation

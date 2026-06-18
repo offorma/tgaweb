@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
-import { STATS } from "./data";
+import type { Stat } from "@prisma/client";
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -16,7 +16,7 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
     const duration = 1800;
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3);
       setDisplay(Math.round(value * eased));
       if (t < 1) raf = requestAnimationFrame(tick);
     };
@@ -32,10 +32,11 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
   );
 }
 
-export function Stats() {
+export function Stats({ stats }: { stats: Stat[] }) {
+  if (!stats.length) return null;
+
   return (
     <section className="relative py-20 bg-[var(--navy)] overflow-hidden">
-      {/* Mesh background */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-0 left-1/4 h-64 w-64 rounded-full bg-[var(--orange)]/40 blur-3xl" />
         <div className="absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-[var(--gold)]/20 blur-3xl" />
@@ -63,9 +64,9 @@ export function Stats() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {STATS.map((stat, i) => (
+          {stats.map((stat, i) => (
             <motion.div
-              key={stat.label}
+              key={stat.id}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -74,7 +75,7 @@ export function Stats() {
             >
               <div className="text-center p-6 lg:p-8 rounded-3xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:border-[var(--orange)]/40 transition-all">
                 <div className="font-serif text-5xl lg:text-6xl font-bold bg-gradient-to-br from-white via-[var(--orange-light)] to-[var(--orange)] bg-clip-text text-transparent">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix || ""} />
                 </div>
                 <div className="mt-3 font-bold text-white text-base lg:text-lg">{stat.label}</div>
                 <div className="mt-1 text-sm text-white/60">{stat.description}</div>

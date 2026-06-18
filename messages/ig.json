@@ -1,0 +1,19 @@
+{
+  "nav": {
+    "home": "Ụlọ", "about": "Maka", "academics": "Mmụta",
+    "campusLife": "Ndụ Ụlọ Akwụkwọ", "admissions": "Nabata", "news": "Akụkọ",
+    "contact": "Kpọtụrụ", "applyNow": "Tinye Akwụkwọ",
+    "followJourney": "Soro njem anyị:", "backToWebsite": "Laghachi na weebụsaịtị"
+  },
+  "footer": {
+    "readyTitle": "Ịdị njikere ịhụ nwa gị",
+    "readyTitle2": "na-efe karịa ókè?",
+    "readyDesc": "Nabata maka oge 2026/2027 mepee ugbu a. Hazie njem taa.",
+    "explore": "Chọpụta", "programs": "Mmemme", "resources": "Ihe Ndị Dị",
+    "newsletter": "Akụkọ Glider", "yourEmail": "Email gị",
+    "subscribe": "Debanye aha",
+    "subscribed": "I debanyere aha! Lelee igbe ozi gị maka mmelite Glider.",
+    "rightsReserved": "Ikike niile echekwara.", "madeWith": "E mere ya na",
+    "inNigeria": "na Nsukka, Naịjirịa", "comingSoon": "Na-abịa n'oge na-adịghị anya"
+  }
+}

@@ -8,23 +8,50 @@ import {
   ShieldCheck,
   Bus,
   Apple,
-  ArrowUpRight,
 } from "lucide-react";
-import { WHY_US } from "./data";
 
-const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  Award,
-  Users,
-  FlaskConical,
-  ShieldCheck,
-  Bus,
-  Apple,
-};
+const WHY_US = [
+  {
+    icon: Award,
+    title: "Top-Ranked in Nsukka",
+    description:
+      "Consistently recognized among the leading primary schools in Enugu State for academic distinction and holistic pupil development.",
+  },
+  {
+    icon: Users,
+    title: "Small Class Sizes",
+    description:
+      "A 1:12 teacher-to-pupil ratio ensures every child receives personal attention, tailored feedback, and the space to thrive.",
+  },
+  {
+    icon: FlaskConical,
+    title: "Modern STEM Labs",
+    description:
+      "Dedicated science, robotics, and ICT labs equip pupils with the digital and analytical skills of the 21st century.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Safe & Secure Campus",
+    description:
+      "CCTV-monitored grounds, trained security personnel, and a caring pastoral team keep every Glider safe and supported.",
+  },
+  {
+    icon: Bus,
+    title: "Door-to-Door Transport",
+    description:
+      "A fleet of GPS-tracked school buses serves Nsukka and surrounding towns with vetted drivers and chaperones.",
+  },
+  {
+    icon: Apple,
+    title: "Healthy Meal Plans",
+    description:
+      "Nutritionist-designed hot lunches and snacks fuel growing minds — prepared fresh daily in our hygienic kitchen.",
+  },
+];
 
 export function WhyUs() {
   return (
     <section className="py-24 lg:py-32 bg-white relative overflow-hidden">
-      {/* Subtle dotted background */}
       <div
         className="absolute inset-0 opacity-[0.04]"
         style={{
@@ -68,7 +95,7 @@ export function WhyUs() {
 
         <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {WHY_US.map((item, i) => {
-            const Icon = ICONS[item.icon];
+            const Icon = item.icon;
             return (
               <motion.div
                 key={item.title}
@@ -78,28 +105,19 @@ export function WhyUs() {
                 transition={{ duration: 0.5, delay: i * 0.08 }}
                 className="group relative bg-white rounded-3xl p-8 border border-black/5 hover:border-transparent hover:shadow-2xl hover:shadow-[var(--navy)]/10 transition-all duration-300 overflow-hidden"
               >
-                {/* Hover gradient corner */}
                 <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-gradient-to-br from-[var(--orange)]/0 to-[var(--orange)]/0 group-hover:from-[var(--orange)]/10 group-hover:to-[var(--gold)]/5 transition-all duration-500 blur-2xl" />
 
-                {/* Icon */}
                 <div className="relative h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--navy)] to-[var(--navy-light)] flex items-center justify-center group-hover:from-[var(--orange)] group-hover:to-[var(--orange-dark)] transition-all duration-500 shadow-lg">
-                  {Icon && <Icon className="h-6 w-6 text-white" />}
+                  <Icon className="h-6 w-6 text-white" />
                   <div className="absolute inset-0 rounded-2xl bg-white/0 group-hover:bg-white/10 transition-all" />
                 </div>
 
-                {/* Content */}
                 <h3 className="mt-6 font-serif text-xl font-bold text-[var(--navy)] group-hover:text-[var(--orange-dark)] transition-colors">
                   {item.title}
                 </h3>
                 <p className="mt-2 text-muted-foreground leading-relaxed text-sm">
                   {item.description}
                 </p>
-
-                {/* Arrow */}
-                <div className="mt-5 flex items-center gap-1 text-[var(--orange)] text-sm font-semibold opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 duration-300">
-                  <span>Learn more</span>
-                  <ArrowUpRight className="h-4 w-4" />
-                </div>
               </motion.div>
             );
           })}

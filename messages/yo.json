@@ -1,0 +1,19 @@
+{
+  "nav": {
+    "home": "Ilé", "about": "Nipa", "academics": "Ẹkọ",
+    "campusLife": "Ìgbésíayé Ilé-ìwé", "admissions": "Ìgbaàwọlé", "news": "Ìròyìn",
+    "contact": "Ìbáraẹnisọ̀rọ̀", "applyNow": "Ṣe Ìgbàwọlé",
+    "followJourney": "Tẹ̀lé ìrìn-àjọ wa:", "backToWebsite": "Páàrọ̀ sí ojú òpó wẹ́ẹ̀bù"
+  },
+  "footer": {
+    "readyTitle": "Ṣetán láti rí ọmọ rẹ",
+    "readyTitle2": "ń fò kọja ìlà?",
+    "readyDesc": "Ìgbaàwọlé màt ìdá 2026/2027 ṣí pá báyìí. Ṣ'ìpinnu ìbẹ̀wò òní.",
+    "explore": "Khọ́", "programs": "Àwọn Ètò", "resources": "Àwọn Nǹkan Ìrànwọ́",
+    "newsletter": "Ìròyìn Glider", "yourEmail": "Email rẹ",
+    "subscribe": "Alákọ̀ọ́bẹ̀rẹ̀",
+    "subscribed": "O ti kọ́ orúkọ! Wo àpò ìránsẹ́ rẹ fún àwọn ìròyìn Glider.",
+    "rightsReserved": "Gbogbo ẹ̀tọ̀ dábì.", "madeWith": "A ṣ'ẹ́ pẹ̀lú",
+    "inNigeria": "ní Nsukka, Nàìjíríà", "comingSoon": "Ń bọ̀ láìpẹ́"
+  }
+}
