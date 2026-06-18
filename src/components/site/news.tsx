@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { ArrowUpRight, Calendar } from "lucide-react";
 import type { NewsItem } from "@prisma/client";
 
@@ -14,6 +15,7 @@ function formatDate(iso: string | Date) {
 }
 
 export function News({ news }: { news: NewsItem[] }) {
+  const t = useTranslations("news");
   if (!news.length) return null;
 
   return (
@@ -28,7 +30,7 @@ export function News({ news }: { news: NewsItem[] }) {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--navy)]/10 text-[var(--navy)] text-xs font-bold uppercase tracking-[0.18em]"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--navy)]" />
-              News & Events
+              {t("badge")}
             </motion.span>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -37,8 +39,8 @@ export function News({ news }: { news: NewsItem[] }) {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.1] text-balance"
             >
-              What's happening on
-              <span className="gradient-text-orange"> the Glider campus.</span>
+              {t("title1")}
+              <span className="gradient-text-orange"> {t("title2")}</span>
             </motion.h2>
           </div>
           <motion.button
@@ -48,7 +50,7 @@ export function News({ news }: { news: NewsItem[] }) {
             onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
             className="self-start lg:self-auto inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--orange-dark)] hover:text-[var(--orange)] transition-colors"
           >
-            Contact admissions
+            {t("contactAdmissions")}
             <ArrowUpRight className="h-4 w-4" />
           </motion.button>
         </div>

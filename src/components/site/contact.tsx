@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import {
   Phone,
@@ -23,6 +24,7 @@ import type { SiteSettings } from "@prisma/client";
 import { BotDefense, type BotDefenseTokens } from "./bot-defense";
 
 export function Contact({ settings }: { settings: SiteSettings | null }) {
+  const t = useTranslations("contact");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [botTokens, setBotTokens] = useState<BotDefenseTokens | null>(null);
@@ -45,29 +47,29 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
   const CONTACT_INFO = [
     {
       icon: MapPin,
-      label: "Visit Us",
+      label: t("visitUs"),
       value: address,
       href: `https://maps.google.com/?q=${encodeURIComponent(address)}`,
     },
     {
       icon: Phone,
-      label: "Call Us",
+      label: t("callUs"),
       value: phone,
       sub: phoneAlt,
       href: `tel:${phone.replace(/\s/g, "")}`,
     },
     {
       icon: Mail,
-      label: "Email Us",
+      label: t("emailUs"),
       value: email,
       sub: admissionsEmail,
       href: `mailto:${email}`,
     },
     {
       icon: Clock,
-      label: "Office Hours",
+      label: t("officeHours"),
       value: hours,
-      sub: "Saturday: 9 AM – 1 PM (by appointment)",
+      sub: t("saturdayHours"),
     },
   ];
 
@@ -111,7 +113,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
       }
 
       setSubmitted(true);
-      toast.success("Message sent! Our team will respond within 24 hours.");
+      toast.success(t("messageSent"));
       (e.target as HTMLFormElement).reset();
       setTimeout(() => setSubmitted(false), 5000);
     } catch (e: any) {
@@ -133,7 +135,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--orange)]/10 text-[var(--orange-dark)] text-xs font-bold uppercase tracking-[0.18em]"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-              Get in Touch
+              {t("badge")}
             </motion.span>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -142,8 +144,8 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.05] text-balance"
             >
-              We'd love to
-              <span className="block gradient-text-orange">hear from you.</span>
+              {t("title1")}
+              <span className="block gradient-text-orange">{t("title2")}</span>
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -152,8 +154,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="mt-5 text-lg text-muted-foreground leading-relaxed"
             >
-              Have a question about admissions, programs, or campus life?
-              Reach out — our friendly team will respond within one business day.
+              {t("description")}
             </motion.p>
 
             <div className="mt-10 space-y-4">
@@ -201,7 +202,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
 
             {SOCIAL.length > 0 && (
               <div className="mt-8 flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Follow us:</span>
+                <span className="text-sm text-muted-foreground">{t("followUs")}</span>
                 {SOCIAL.map((s) => {
                   const Icon = s.icon;
                   const href = s.href.startsWith("http") ? s.href : `https://${s.href}`;
@@ -235,17 +236,17 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
 
               <div className="relative">
                 <h3 className="font-serif text-2xl lg:text-3xl font-bold text-white">
-                  Send us a message
+                  {t("sendMessage")}
                 </h3>
                 <p className="mt-2 text-white/70 text-sm">
-                  Fill out the form below and we'll get back to you shortly.
+                  {t("formDescription")}
                 </p>
 
                 <form onSubmit={onSubmit} className="mt-8 space-y-5">
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-1.5">
                       <Label htmlFor="firstName" className="text-white/90 text-xs">
-                        First Name *
+                        {t("firstName")} *
                       </Label>
                       <Input
                         id="firstName"
@@ -258,7 +259,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="lastName" className="text-white/90 text-xs">
-                        Last Name *
+                        {t("lastName")} *
                       </Label>
                       <Input
                         id="lastName"
@@ -274,7 +275,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-1.5">
                       <Label htmlFor="email" className="text-white/90 text-xs">
-                        Email *
+                        {t("email")} *
                       </Label>
                       <Input
                         id="email"
@@ -288,7 +289,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="phone" className="text-white/90 text-xs">
-                        Phone
+                        {t("phone")}
                       </Label>
                       <Input
                         id="phone"
@@ -303,7 +304,7 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="subject" className="text-white/90 text-xs">
-                      I'm interested in *
+                      {t("subject")} *
                     </Label>
                     <select
                       id="subject"
@@ -313,19 +314,19 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
                       className="w-full h-10 rounded-md bg-white/10 border border-white/20 text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--orange)] focus:border-[var(--orange)] [&>option]:text-[var(--navy)]"
                     >
                       <option value="" disabled>Select an option</option>
-                      <option value="admissions">Admissions enquiry</option>
-                      <option value="tour">Booking a campus tour</option>
-                      <option value="nursery">Nursery program</option>
-                      <option value="lower">Lower Primary program</option>
-                      <option value="upper">Upper Primary program</option>
-                      <option value="careers">Careers / Teaching opportunity</option>
-                      <option value="other">Other</option>
+                      <option value="admissions">{t("subjects.admissions")}</option>
+                      <option value="tour">{t("subjects.tour")}</option>
+                      <option value="nursery">{t("subjects.nursery")}</option>
+                      <option value="lower">{t("subjects.lower")}</option>
+                      <option value="upper">{t("subjects.upper")}</option>
+                      <option value="careers">{t("subjects.careers")}</option>
+                      <option value="other">{t("subjects.other")}</option>
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
                     <Label htmlFor="message" className="text-white/90 text-xs">
-                      Your Message *
+                      {t("message")} *
                     </Label>
                     <Textarea
                       id="message"
@@ -333,13 +334,17 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
                       required
                       maxLength={5000}
                       rows={4}
-                      placeholder="Tell us about your child and what you'd like to know..."
+                      placeholder={t("messagePlaceholder")}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-[var(--orange)] resize-none"
                     />
                   </div>
 
                   {/* Bot defense: math captcha + time-trap + honeypots + optional Turnstile */}
-                  <BotDefense onTokensChange={setBotTokens} />
+                  <BotDefense
+                    onTokensChange={setBotTokens}
+                    securityCheckLabel={t("securityCheck")}
+                    protectedSpamLabel={t("protectedSpam")}
+                  />
 
                   <Button
                     type="submit"
@@ -349,24 +354,23 @@ export function Contact({ settings }: { settings: SiteSettings | null }) {
                     {loading ? (
                       <>
                         <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                        Sending...
+                        {t("sending")}
                       </>
                     ) : submitted ? (
                       <>
                         <CheckCircle2 className="mr-2 h-5 w-5" />
-                        Message Sent!
+                        {t("sent")}
                       </>
                     ) : (
                       <>
-                        Send Message
+                        {t("send")}
                         <Send className="ml-2 h-4 w-4" />
                       </>
                     )}
                   </Button>
 
                   <p className="text-center text-xs text-white/50">
-                    By submitting, you agree to be contacted by Trail Gliders Academy.
-                    We respect your privacy.
+                    {t("privacyNote")}
                   </p>
                 </form>
               </div>

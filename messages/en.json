@@ -5,10 +5,132 @@
     "contact": "Contact", "applyNow": "Apply Now",
     "followJourney": "Follow our journey:", "backToWebsite": "Back to website"
   },
+  "hero": {
+    "beginApplication": "Begin Your Application",
+    "exploreCampus": "Explore Campus Life",
+    "ourPromise": "Our Promise",
+    "scroll": "Scroll",
+    "rating": "from 320+ parents",
+    "alumni": "Glider Alumni",
+    "ubeApproved": "Approved by UBE Enugu"
+  },
+  "marquee": {
+    "motto": "Knowledge • Character • Service",
+    "nurseryLowerUpper": "Nursery • Lower Primary • Upper Primary",
+    "robotics": "Robotics • Coding • STEM",
+    "musicArt": "Music • Art • Drama",
+    "sportsLeadership": "Sports • Leadership • Service"
+  },
+  "about": {
+    "badge": "Who We Are",
+    "heading1": "A school where every child is known, seen, and",
+    "heading2": "celebrated.",
+    "missionTitle": "Our Mission",
+    "visionTitle": "Our Vision",
+    "yearsBadge": "Years",
+    "yearsDesc": "of Glider excellence"
+  },
+  "stats": {
+    "badge": "By the Numbers",
+    "title": "Sixteen years of measurable impact"
+  },
+  "whyUs": {
+    "badge": "Why Families Choose Us",
+    "title1": "More than a school.",
+    "title2": "A launchpad for life.",
+    "description": "From the smallest details of daily care to the boldest dreams of a Glider graduate — every part of our school is designed to help your child rise."
+  },
+  "academics": {
+    "badge": "Academics",
+    "title1": "A program for every stage of",
+    "title2": "the journey.",
+    "description": "From the wonder of Nursery to the confidence of Primary 6, our three-stage pathway guides every Glider through a curriculum that is rigorous, joyful, and unmistakably African.",
+    "stage": "Stage",
+    "highlights": "Program Highlights",
+    "bookConsultation": "Book a consultation"
+  },
+  "campusLife": {
+    "badge": "Campus Life",
+    "title1": "A vibrant world beyond",
+    "title2": "the classroom.",
+    "bookTour": "Book a campus tour",
+    "featured": "Featured"
+  },
+  "faculty": {
+    "badge": "Meet Our Educators",
+    "title1": "The hearts and minds behind",
+    "title2": "every Glider.",
+    "description": "Certified, passionate, and deeply caring — our educators are the soul of Trail Gliders. They don't just teach. They mentor, inspire, and walk alongside every child."
+  },
+  "testimonials": {
+    "badge": "Voices from our Family",
+    "title1": "Loved by parents.",
+    "title2": "Trusted with their children."
+  },
+  "admissions": {
+    "badge": "Admissions Open",
+    "title1": "Four simple steps to",
+    "title2": "becoming a Glider.",
+    "paragraph": "Whether you are joining us from Nursery or transferring into Primary 5, we make the admissions journey warm, transparent, and welcoming — just like our school.",
+    "session": "2026/2027 Session",
+    "limitedSpots": "Limited spots available across all stages.",
+    "scholarships": "Scholarships available for exceptional pupils",
+    "openDay": "Open Day: Saturday, 18 July 2026",
+    "deadline": "Applications close July 31, 2026",
+    "startApplication": "Start Your Application",
+    "haveQuestion": "Have a question?",
+    "admissionsReplies": "Our admissions team replies within 24 hours.",
+    "step": "Step"
+  },
+  "news": {
+    "badge": "News & Events",
+    "title1": "What's happening on",
+    "title2": "the Glider campus.",
+    "contactAdmissions": "Contact admissions"
+  },
+  "faq": {
+    "badge": "Frequently Asked",
+    "title1": "Your questions,",
+    "title2": "answered.",
+    "description": "Everything you need to know about life at Trail Gliders. Can't find your answer? Reach our team any time."
+  },
+  "contact": {
+    "badge": "Get in Touch",
+    "title1": "We'd love to",
+    "title2": "hear from you.",
+    "description": "Have a question about admissions, programs, or campus life? Reach out — our friendly team will respond within one business day.",
+    "visitUs": "Visit Us", "callUs": "Call Us", "emailUs": "Email Us",
+    "officeHours": "Office Hours",
+    "saturdayHours": "Saturday: 9 AM – 1 PM (by appointment)",
+    "followUs": "Follow us:",
+    "sendMessage": "Send us a message",
+    "formDescription": "Fill out the form below and we'll get back to you shortly.",
+    "firstName": "First Name", "lastName": "Last Name",
+    "email": "Email", "phone": "Phone",
+    "subject": "I'm interested in",
+    "message": "Your Message",
+    "messagePlaceholder": "Tell us about your child and what you'd like to know...",
+    "send": "Send Message", "sending": "Sending...", "sent": "Message Sent!",
+    "messageReceived": "Message received. We'll respond within 24 hours.",
+    "messageSent": "Message sent! We'll respond within 24 hours.",
+    "privacyNote": "By submitting, you agree to be contacted by Trail Gliders Academy. We respect your privacy.",
+    "securityCheck": "Security check: what is",
+    "protectedSpam": "Protected against automated spam",
+    "subjects": {
+      "admissions": "Admissions enquiry",
+      "tour": "Booking a campus tour",
+      "nursery": "Nursery program",
+      "lower": "Lower Primary program",
+      "upper": "Upper Primary program",
+      "careers": "Careers / Teaching opportunity",
+      "other": "Other"
+    }
+  },
   "footer": {
     "readyTitle": "Ready to watch your child",
     "readyTitle2": "glide beyond limits?",
     "readyDesc": "Admissions for the 2026/2027 session are now open. Schedule a visit today.",
+    "applyNow": "Apply Now",
     "explore": "Explore", "programs": "Programs", "resources": "Resources",
     "newsletter": "Glider Newsletter", "yourEmail": "Your email",
     "subscribe": "Subscribe",

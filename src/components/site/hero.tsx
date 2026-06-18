@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { ChevronDown, ArrowRight, Star, Play, Sparkles, ChevronLeft, ChevronRight, Pause, GalleryVerticalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ export function Hero({
   settings: SiteSettings | null;
   slides: Slide[];
 }) {
+  const t = useTranslations("hero");
   const tagline = settings?.tagline || "Excellence as You Glide Beyond Limits";
   const crest = settings?.crestUrl || "/crest/school-crest.png";
   const heroBadge = settings?.heroBadge || "Admissions Open for 2026/2027 Session";
@@ -322,7 +324,7 @@ export function Hero({
                       size="lg"
                       className="shadow-2xl shadow-orange-500/40 hover:scale-105 transition-all px-8 h-13 text-base"
                     >
-                      Begin Your Application
+                      {t("beginApplication")}
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </ApplyButton>
                   )}
@@ -333,7 +335,7 @@ export function Hero({
                     className="bg-white/5 backdrop-blur-md border-white/30 text-white hover:bg-white/15 hover:text-white rounded-full px-8 h-13 text-base"
                   >
                     <Play className="mr-2 h-4 w-4 fill-white" />
-                    Explore Campus Life
+                    {t("exploreCampus")}
                   </Button>
                 </motion.div>
 
@@ -350,16 +352,16 @@ export function Hero({
                       ))}
                     </div>
                     <span className="text-sm">
-                      <span className="font-bold text-white">4.9/5</span> from 320+ parents
+                      <span className="font-bold text-white">4.9/5</span> {t("rating")}
                     </span>
                   </div>
                   <div className="h-5 w-px bg-white/20" />
                   <div className="text-sm">
-                    <span className="font-bold text-white">850+</span> Glider Alumni
+                    <span className="font-bold text-white">850+</span> {t("alumni")}
                   </div>
                   <div className="h-5 w-px bg-white/20" />
                   <div className="text-sm">
-                    Approved by <span className="font-bold text-white">UBE Enugu</span>
+                    {t("ubeApproved")}
                   </div>
                 </motion.div>
               </motion.div>
@@ -397,7 +399,7 @@ export function Hero({
                 >
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--orange-light)] font-bold flex items-center gap-1.5">
                     <Sparkles className="h-3 w-3" />
-                    Our Promise
+                    {t("ourPromise")}
                   </div>
                   <div className="text-base font-serif italic mt-1 max-w-[220px] leading-snug">
                     "{tagline}"
@@ -519,7 +521,7 @@ export function Hero({
         className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 text-white/70 hover:text-white flex flex-col items-center gap-2"
         aria-label="Scroll to about"
       >
-        <span className="text-[10px] uppercase tracking-[0.3em]">Scroll</span>
+        <span className="text-[10px] uppercase tracking-[0.3em]">{t("scroll")}</span>
         <div className="h-10 w-6 rounded-full border-2 border-white/30 flex items-start justify-center p-1">
           <span className="h-2 w-1 rounded-full bg-white animate-scroll-down" />
         </div>

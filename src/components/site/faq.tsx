@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
   Accordion,
   AccordionContent,
@@ -11,6 +12,7 @@ import { HelpCircle } from "lucide-react";
 import type { Faq } from "@prisma/client";
 
 export function FAQ({ faqs }: { faqs: Faq[] }) {
+  const t = useTranslations("faq");
   if (!faqs.length) return null;
 
   return (
@@ -24,7 +26,7 @@ export function FAQ({ faqs }: { faqs: Faq[] }) {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--navy)]/10 text-[var(--navy)] text-xs font-bold uppercase tracking-[0.18em]"
           >
             <HelpCircle className="h-3 w-3" />
-            Frequently Asked
+            {t("badge")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -33,8 +35,8 @@ export function FAQ({ faqs }: { faqs: Faq[] }) {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-5 font-serif font-bold text-4xl sm:text-5xl text-[var(--navy)] leading-tight text-balance"
           >
-            Your questions,
-            <span className="gradient-text-orange"> answered.</span>
+            {t("title1")}
+            <span className="gradient-text-orange"> {t("title2")}</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -43,8 +45,7 @@ export function FAQ({ faqs }: { faqs: Faq[] }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-4 text-muted-foreground text-balance"
           >
-            Everything you need to know about life at Trail Gliders. Can't find your answer?
-            Reach our team any time.
+            {t("description")}
           </motion.p>
         </div>
 

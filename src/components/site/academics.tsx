@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ArrowRight, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const COLOR_STYLES: Record<string, { bg: string; text: string; ring: string; chi
 
 export function Academics({ programs }: { programs: Program[] }) {
   const [active, setActive] = useState(0);
+  const t = useTranslations("academics");
 
   if (!programs.length) return null;
   const program = programs[Math.min(active, programs.length - 1)];
@@ -47,7 +49,7 @@ export function Academics({ programs }: { programs: Program[] }) {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--navy)]/10 text-[var(--navy)] text-xs font-bold uppercase tracking-[0.18em]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--navy)]" />
-            Academics
+            {t("badge")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -56,8 +58,8 @@ export function Academics({ programs }: { programs: Program[] }) {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.1] text-balance"
           >
-            A program for every stage of
-            <span className="gradient-text-navy"> the journey.</span>
+            {t("title1")}
+            <span className="gradient-text-navy"> {t("title2")}</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -66,8 +68,7 @@ export function Academics({ programs }: { programs: Program[] }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-5 text-lg text-muted-foreground text-balance"
           >
-            From the wonder of Nursery to the confidence of Primary 6, our three-stage pathway
-            guides every Glider through a curriculum that is rigorous, joyful, and unmistakably African.
+            {t("description")}
           </motion.p>
         </div>
 
@@ -96,7 +97,7 @@ export function Academics({ programs }: { programs: Program[] }) {
                     "text-[10px] font-bold uppercase tracking-[0.18em]",
                     active === i ? "text-white/70" : "text-muted-foreground"
                   )}>
-                    Stage {i + 1}
+                    {t("stage")} {i + 1}
                   </div>
                   <div className={cn(
                     "font-serif font-bold text-base mt-0.5",
@@ -152,7 +153,7 @@ export function Academics({ programs }: { programs: Program[] }) {
 
               <div className="mt-8">
                 <h4 className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--navy)]">
-                  Program Highlights
+                  {t("highlights")}
                 </h4>
                 <ul className="mt-4 grid sm:grid-cols-2 gap-3">
                   {features.map((feature) => (
@@ -180,7 +181,7 @@ export function Academics({ programs }: { programs: Program[] }) {
                     colors.bg
                   )}
                 >
-                  Book a consultation
+                  {t("bookConsultation")}
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </div>

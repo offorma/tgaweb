@@ -5,10 +5,117 @@
     "contact": "Contact", "applyNow": "Postuler maintenant",
     "followJourney": "Suivez notre parcours :", "backToWebsite": "Retour au site"
   },
+  "hero": {
+    "beginApplication": "Commencez votre candidature",
+    "exploreCampus": "Explorer la vie du campus",
+    "ourPromise": "Notre promesse", "scroll": "Défiler",
+    "rating": "de 320+ parents", "alumni": "Anciens élèves",
+    "ubeApproved": "Approuvé par UBE Enugu"
+  },
+  "marquee": {
+    "motto": "Savoir • Caractère • Service",
+    "nurseryLowerUpper": "Maternelle • Primaire inférieur • Primaire supérieur",
+    "robotics": "Robotique • Codage • STEM",
+    "musicArt": "Musique • Art • Théâtre",
+    "sportsLeadership": "Sport • Leadership • Service"
+  },
+  "about": {
+    "badge": "Qui nous sommes",
+    "heading1": "Une école où chaque enfant est connu, vu et",
+    "heading2": "célébré.",
+    "missionTitle": "Notre mission", "visionTitle": "Notre vision",
+    "yearsBadge": "Ans", "yearsDesc": "d'excellence Glider"
+  },
+  "stats": {
+    "badge": "En chiffres",
+    "title": "Seize ans d'impact mesurable"
+  },
+  "whyUs": {
+    "badge": "Pourquoi les familles nous choisissent",
+    "title1": "Plus qu'une école.", "title2": "Un tremplin pour la vie.",
+    "description": "Des plus petits détails des soins quotidiens aux rêves les plus audacieux d'un diplômé Glider — chaque partie de notre école est conçue pour aider votre enfant à s'élever."
+  },
+  "academics": {
+    "badge": "Académique",
+    "title1": "Un programme pour chaque étape de",
+    "title2": "le parcours.",
+    "description": "De l'émerveillement de la maternelle à la confiance du CM2, notre parcours en trois étapes guide chaque Glider à travers un programme rigoureux, joyeux et incontestablement africain.",
+    "stage": "Étape", "highlights": "Points forts du programme",
+    "bookConsultation": "Réserver une consultation"
+  },
+  "campusLife": {
+    "badge": "Vie du campus",
+    "title1": "Un monde vibrant au-delà de",
+    "title2": "la salle de classe.",
+    "bookTour": "Réserver une visite du campus", "featured": "À la une"
+  },
+  "faculty": {
+    "badge": "Rencontrez nos éducateurs",
+    "title1": "Les cœurs et les esprits derrière",
+    "title2": "chaque Glider.",
+    "description": "Certifiés, passionnés et profondément bienveillants — nos éducateurs sont l'âme de Trail Gliders. Ils n'enseignent pas seulement. Ils mentorisent, inspirent et accompagnent chaque enfant."
+  },
+  "testimonials": {
+    "badge": "Voix de notre famille",
+    "title1": "Aimés par les parents.", "title2": "Confiance accordée pour leurs enfants."
+  },
+  "admissions": {
+    "badge": "Admissions ouvertes",
+    "title1": "Quatre étapes simples pour",
+    "title2": "devenir un Glider.",
+    "paragraph": "Que vous nous rejoigniez depuis la maternelle ou que vous transfériez en CM1, nous rendons le parcours d'admission chaleureux, transparent et accueillant — tout comme notre école.",
+    "session": "Session 2026/2027",
+    "limitedSpots": "Places limitées dans tous les niveaux.",
+    "scholarships": "Bourses disponibles pour les élèves exceptionnels",
+    "openDay": "Portes ouvertes : Samedi 18 juillet 2026",
+    "deadline": "Les candidatures ferment le 31 juillet 2026",
+    "startApplication": "Commencez votre candidature",
+    "haveQuestion": "Une question ?",
+    "admissionsReplies": "Notre équipe d'admission répond sous 24 heures.",
+    "step": "Étape"
+  },
+  "news": {
+    "badge": "Actualités & Événements",
+    "title1": "Ce qui se passe sur",
+    "title2": "le campus Glider.",
+    "contactAdmissions": "Contacter les admissions"
+  },
+  "faq": {
+    "badge": "Questions fréquentes",
+    "title1": "Vos questions,", "title2": "réponses.",
+    "description": "Tout ce que vous devez savoir sur la vie à Trail Gliders. Vous ne trouvez pas votre réponse ? Contactez notre équipe à tout moment."
+  },
+  "contact": {
+    "badge": "Contactez-nous",
+    "title1": "Nous aimerions", "title2": "vous entendre.",
+    "description": "Une question sur les admissions, les programmes ou la vie du campus ? Contactez-nous — notre équipe amicale répondra dans un délai d'un jour ouvrable.",
+    "visitUs": "Nous visiter", "callUs": "Nous appeler", "emailUs": "Nous écrire",
+    "officeHours": "Heures de bureau",
+    "saturdayHours": "Samedi : 9h – 13h (sur rendez-vous)",
+    "followUs": "Suivez-nous :",
+    "sendMessage": "Envoyez-nous un message",
+    "formDescription": "Remplissez le formulaire ci-dessous et nous vous répondrons rapidement.",
+    "firstName": "Prénom", "lastName": "Nom", "email": "Email", "phone": "Téléphone",
+    "subject": "Je suis intéressé par", "message": "Votre message",
+    "messagePlaceholder": "Parlez-nous de votre enfant et de ce que vous aimeriez savoir...",
+    "send": "Envoyer le message", "sending": "Envoi...", "sent": "Message envoyé !",
+    "messageReceived": "Message reçu. Nous répondrons sous 24 heures.",
+    "messageSent": "Message envoyé ! Nous répondrons sous 24 heures.",
+    "privacyNote": "En soumettant, vous acceptez d'être contacté par Trail Gliders Academy. Nous respectons votre vie privée.",
+    "securityCheck": "Vérification de sécurité : combien font",
+    "protectedSpam": "Protégé contre le spam automatisé",
+    "subjects": {
+      "admissions": "Demande d'admission", "tour": "Réservation d'une visite du campus",
+      "nursery": "Programme maternelle", "lower": "Programme primaire inférieur",
+      "upper": "Programme primaire supérieur", "careers": "Carrières / Opportunité d'enseignement",
+      "other": "Autre"
+    }
+  },
   "footer": {
     "readyTitle": "Prêt à voir votre enfant",
     "readyTitle2": "s'envoler au-delà des limites ?",
     "readyDesc": "Les admissions pour la session 2026/2027 sont ouvertes. Planifiez une visite aujourd'hui.",
+    "applyNow": "Postuler maintenant",
     "explore": "Explorer", "programs": "Programmes", "resources": "Ressources",
     "newsletter": "Newsletter Glider", "yourEmail": "Votre email",
     "subscribe": "S'abonner",

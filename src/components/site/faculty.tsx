@@ -1,10 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Quote } from "lucide-react";
 import type { Faculty } from "@prisma/client";
 
 export function Faculty({ faculty }: { faculty: Faculty[] }) {
+  const t = useTranslations("faculty");
   if (!faculty.length) return null;
 
   return (
@@ -22,7 +24,7 @@ export function Faculty({ faculty }: { faculty: Faculty[] }) {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--navy)]/10 text-[var(--navy)] text-xs font-bold uppercase tracking-[0.18em]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--navy)]" />
-            Meet Our Educators
+            {t("badge")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -31,8 +33,8 @@ export function Faculty({ faculty }: { faculty: Faculty[] }) {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.1] text-balance"
           >
-            The hearts and minds behind
-            <span className="gradient-text-orange"> every Glider.</span>
+            {t("title1")}
+            <span className="gradient-text-orange"> {t("title2")}</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -41,8 +43,7 @@ export function Faculty({ faculty }: { faculty: Faculty[] }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-5 text-lg text-muted-foreground text-balance"
           >
-            Certified, passionate, and deeply caring — our educators are the soul of Trail Gliders.
-            They don't just teach. They mentor, inspire, and walk alongside every child.
+            {t("description")}
           </motion.p>
         </div>
 

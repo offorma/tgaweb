@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { ArrowRight, Calendar, FileText, ClipboardCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SiteSettings, AdmissionStep } from "@prisma/client";
@@ -15,12 +16,12 @@ export function Admissions({
   settings: SiteSettings | null;
   steps: AdmissionStep[];
 }) {
+  const t = useTranslations("admissions");
   if (!steps.length) return null;
 
-  const heading = settings?.admissionsHeading || "Four simple steps to becoming a Glider.";
   const paragraph = settings?.admissionsParagraph || "";
-  const deadline = settings?.admissionsDeadline || "Applications close July 31, 2026";
-  const openDay = settings?.admissionsOpenDay || "Open Day: Saturday, 18 July 2026";
+  const deadline = settings?.admissionsDeadline || t("deadline");
+  const openDay = settings?.admissionsOpenDay || t("openDay");
   const admissionsEmail = settings?.admissionsEmail || "admissions@trailgliders.edu.ng";
 
   return (
@@ -46,7 +47,7 @@ export function Admissions({
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--orange)]/10 text-[var(--orange-dark)] text-xs font-bold uppercase tracking-[0.18em]"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-              Admissions Open
+              {t("badge")}
             </motion.span>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -55,8 +56,14 @@ export function Admissions({
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.05] text-balance"
             >
-              {heading.split("Glider")[0]}
-              <span className="block gradient-text-orange">Glider.</span>
+              {settings?.admissionsHeading ? (
+                settings.admissionsHeading
+              ) : (
+                <>
+                  {t("title1")}{" "}
+                  <span className="block gradient-text-orange">{t("title2")}</span>
+                </>
+              )}
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -78,11 +85,11 @@ export function Admissions({
               <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-[var(--orange)]/30 blur-2xl" />
               <div className="relative">
                 <div className="text-xs uppercase tracking-[0.18em] text-[var(--orange-light)] font-bold">
-                  2026/2027 Session
+                  {t("session")}
                 </div>
                 <div className="mt-2 font-serif text-2xl font-bold">{deadline}</div>
                 <div className="mt-1 text-sm text-white/70">
-                  Limited spots available across all stages.
+                  {t("limitedSpots")}
                 </div>
 
                 <div className="mt-5 space-y-2 text-sm text-white/85">
@@ -92,7 +99,7 @@ export function Admissions({
                   </div>
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-[var(--orange)]" />
-                    Scholarships available for exceptional pupils
+                    {t("scholarships")}
                   </div>
                 </div>
 
@@ -102,7 +109,7 @@ export function Admissions({
                     size="default"
                     className="w-full hover:opacity-95 h-12"
                   >
-                    Start Your Application
+                    {t("startApplication")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </ApplyButton>
                 </div>
@@ -135,7 +142,7 @@ export function Admissions({
                           <div className="flex-1">
                             <div className="flex items-center gap-3">
                               <span className="font-serif text-3xl font-bold text-[var(--orange)]/30">
-                                {step.step}
+                                {t("step")} {step.step}
                               </span>
                               <h3 className="font-serif text-xl font-bold text-[var(--navy)]">
                                 {step.title}
@@ -160,8 +167,8 @@ export function Admissions({
               className="mt-8 p-5 rounded-2xl bg-[var(--cream)] border border-[var(--orange)]/20 flex flex-wrap items-center justify-between gap-3"
             >
               <div className="text-sm">
-                <div className="font-bold text-[var(--navy)]">Have a question?</div>
-                <div className="text-muted-foreground">Our admissions team replies within 24 hours.</div>
+                <div className="font-bold text-[var(--navy)]">{t("haveQuestion")}</div>
+                <div className="text-muted-foreground">{t("admissionsReplies")}</div>
               </div>
               <a
                 href={`mailto:${admissionsEmail}`}

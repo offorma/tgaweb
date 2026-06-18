@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion, useInView } from "framer-motion";
 import type { Stat } from "@prisma/client";
 
@@ -33,6 +34,7 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
 }
 
 export function Stats({ stats }: { stats: Stat[] }) {
+  const t = useTranslations("stats");
   if (!stats.length) return null;
 
   return (
@@ -50,7 +52,7 @@ export function Stats({ stats }: { stats: Stat[] }) {
             viewport={{ once: true }}
             className="inline-block text-xs font-bold uppercase tracking-[0.25em] text-[var(--orange)]"
           >
-            By the Numbers
+            {t("badge")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -59,7 +61,7 @@ export function Stats({ stats }: { stats: Stat[] }) {
             transition={{ delay: 0.1 }}
             className="mt-3 font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-balance"
           >
-            Sixteen years of measurable impact
+            {t("title")}
           </motion.h2>
         </div>
 

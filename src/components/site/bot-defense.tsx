@@ -29,9 +29,16 @@ export interface BotDefenseTokens {
 interface BotDefenseProps {
   onTokensChange: (tokens: BotDefenseTokens) => void;
   className?: string;
+  securityCheckLabel?: string;
+  protectedSpamLabel?: string;
 }
 
-export function BotDefense({ onTokensChange, className }: BotDefenseProps) {
+export function BotDefense({
+  onTokensChange,
+  className,
+  securityCheckLabel = "Security check: what is",
+  protectedSpamLabel = "Protected against automated spam",
+}: BotDefenseProps) {
   const [problem, setProblem] = useState("");
   const [mathToken, setMathToken] = useState("");
   const [mathAnswer, setMathAnswer] = useState("");
@@ -137,7 +144,7 @@ export function BotDefense({ onTokensChange, className }: BotDefenseProps) {
       {/* Visible math captcha */}
       <div>
         <label className="text-xs font-semibold text-white/90 mb-1.5 block">
-          Security check: what is <span className="font-mono font-bold text-[var(--orange-light)]">{problem}</span>?
+          {securityCheckLabel} <span className="font-mono font-bold text-[var(--orange-light)]">{problem}</span>?
         </label>
         <div className="flex items-center gap-2">
           <input
@@ -207,7 +214,7 @@ export function BotDefense({ onTokensChange, className }: BotDefenseProps) {
       {/* Trust indicator */}
       <div className="flex items-center gap-1.5 text-[10px] text-white/40">
         <ShieldCheck className="h-3 w-3" />
-        <span>Protected against automated spam</span>
+        <span>{protectedSpamLabel}</span>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, Quote, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import type { Testimonial } from "@prisma/client";
 export function Testimonials({ testimonials }: { testimonials: Testimonial[] }) {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
+  const t = useTranslations("testimonials");
 
   const next = useCallback(() => {
     setDirection(1);
@@ -47,7 +49,7 @@ export function Testimonials({ testimonials }: { testimonials: Testimonial[] }) 
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[var(--orange-light)] text-xs font-bold uppercase tracking-[0.18em]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-            Voices from our Family
+            {t("badge")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -56,9 +58,9 @@ export function Testimonials({ testimonials }: { testimonials: Testimonial[] }) 
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl leading-[1.1] text-balance"
           >
-            Loved by parents.
+            {t("title1")}
             <span className="block bg-gradient-to-r from-[var(--orange)] to-[var(--gold)] bg-clip-text text-transparent">
-              Trusted with their children.
+              {t("title2")}
             </span>
           </motion.h2>
         </div>

@@ -1,10 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { ArrowUpRight } from "lucide-react";
 import type { CampusItem } from "@prisma/client";
 
 export function CampusLife({ items }: { items: CampusItem[] }) {
+  const t = useTranslations("campusLife");
   if (!items.length) return null;
 
   return (
@@ -19,7 +21,7 @@ export function CampusLife({ items }: { items: CampusItem[] }) {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--orange)]/10 text-[var(--orange-dark)] text-xs font-bold uppercase tracking-[0.18em]"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-              Campus Life
+              {t("badge")}
             </motion.span>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -28,8 +30,8 @@ export function CampusLife({ items }: { items: CampusItem[] }) {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.1] text-balance"
             >
-              A vibrant world beyond
-              <span className="gradient-text-orange"> the classroom.</span>
+              {t("title1")}
+              <span className="gradient-text-orange"> {t("title2")}</span>
             </motion.h2>
           </div>
           <motion.p
@@ -74,7 +76,7 @@ export function CampusLife({ items }: { items: CampusItem[] }) {
                     <div className="transform transition-transform duration-500 group-hover:-translate-y-1">
                       <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--orange)]/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider w-fit">
                         <span className="h-1 w-1 rounded-full bg-white" />
-                        Featured
+                        {t("featured")}
                       </div>
                       <h3 className="mt-3 font-serif text-xl lg:text-2xl font-bold text-white">
                         {item.title}
@@ -106,7 +108,7 @@ export function CampusLife({ items }: { items: CampusItem[] }) {
               onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
               className="font-semibold text-[var(--orange-dark)] hover:text-[var(--orange)] underline-offset-4 hover:underline"
             >
-              Book a campus tour →
+              {t("bookTour")} →
             </button>
           </p>
         </motion.div>

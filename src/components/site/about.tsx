@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { BookOpen, Heart, Sparkles, Globe } from "lucide-react";
 import type { SiteSettings, Value } from "@prisma/client";
 
@@ -18,7 +19,7 @@ export function About({
   settings: SiteSettings | null;
   values: Value[];
 }) {
-  const heading = settings?.aboutHeading || "A school where every child is known, seen, and celebrated.";
+  const t = useTranslations("about");
   const paragraph = settings?.aboutParagraph || "";
   const missionText = settings?.missionText || "";
   const visionText = settings?.visionText || "";
@@ -42,7 +43,7 @@ export function About({
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--orange)]/10 text-[var(--orange-dark)] text-xs font-bold uppercase tracking-[0.18em]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-            Who We Are
+            {t("badge")}
           </motion.span>
 
           <motion.h2
@@ -52,8 +53,14 @@ export function About({
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.1] text-balance"
           >
-            {heading.split("celebrated")[0]}
-            <span className="gradient-text-orange">celebrated.</span>
+            {settings?.aboutHeading ? (
+              settings.aboutHeading
+            ) : (
+              <>
+                {t("heading1")}{" "}
+                <span className="gradient-text-orange">{t("heading2")}</span>
+              </>
+            )}
           </motion.h2>
 
           <motion.p
@@ -114,8 +121,8 @@ export function About({
                   {new Date().getFullYear() - founded}
                 </div>
                 <div className="text-left">
-                  <div className="text-2xl font-bold text-[var(--navy)]">Years</div>
-                  <div className="text-xs text-muted-foreground">of Glider excellence</div>
+                  <div className="text-2xl font-bold text-[var(--navy)]">{t("yearsBadge")}</div>
+                  <div className="text-xs text-muted-foreground">{t("yearsDesc")}</div>
                 </div>
               </div>
             </div>
@@ -134,7 +141,7 @@ export function About({
                   <BookOpen className="h-6 w-6 text-[var(--navy)]" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-[var(--navy)]">Our Mission</h3>
+                  <h3 className="font-serif text-2xl font-bold text-[var(--navy)]">{t("missionTitle")}</h3>
                   <p className="mt-2 text-muted-foreground leading-relaxed">{missionText}</p>
                 </div>
               </div>
@@ -153,7 +160,7 @@ export function About({
                   <Sparkles className="h-6 w-6 text-[var(--orange)]" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-2xl font-bold">Our Vision</h3>
+                  <h3 className="font-serif text-2xl font-bold">{t("visionTitle")}</h3>
                   <p className="mt-2 text-white/85 leading-relaxed">{visionText}</p>
                 </div>
               </div>

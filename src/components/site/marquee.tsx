@@ -1,19 +1,21 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { GraduationCap } from "lucide-react";
 import type { SiteSettings } from "@prisma/client";
 
 export function Marquee({ settings }: { settings: SiteSettings | null }) {
+  const t = useTranslations("marquee");
   const items = [
-    settings?.motto || "Knowledge • Character • Service",
+    settings?.motto || t("motto"),
     settings?.tagline || "Excellence as You Glide Beyond Limits",
     `Since ${settings?.founded || 2009}`,
     settings?.location || "Nsukka • Enugu State • Nigeria",
-    "Nursery • Lower Primary • Upper Primary",
-    "Robotics • Coding • STEM",
-    "Music • Art • Drama",
-    "Sports • Leadership • Service",
+    t("nurseryLowerUpper"),
+    t("robotics"),
+    t("musicArt"),
+    t("sportsLeadership"),
   ];
 
   return (

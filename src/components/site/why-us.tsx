@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
   Award,
   Users,
@@ -50,6 +51,7 @@ const WHY_US = [
 ];
 
 export function WhyUs() {
+  const t = useTranslations("whyUs");
   return (
     <section className="py-24 lg:py-32 bg-white relative overflow-hidden">
       <div
@@ -69,7 +71,7 @@ export function WhyUs() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--orange)]/10 text-[var(--orange-dark)] text-xs font-bold uppercase tracking-[0.18em]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-            Why Families Choose Us
+            {t("badge")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -78,8 +80,8 @@ export function WhyUs() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-5 font-serif font-bold text-4xl sm:text-5xl lg:text-6xl text-[var(--navy)] leading-[1.1] text-balance"
           >
-            More than a school.
-            <span className="block gradient-text-orange">A launchpad for life.</span>
+            {t("title1")}
+            <span className="block gradient-text-orange">{t("title2")}</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -88,8 +90,7 @@ export function WhyUs() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-5 text-lg text-muted-foreground text-balance"
           >
-            From the smallest details of daily care to the boldest dreams of a Glider graduate —
-            every part of our school is designed to help your child rise.
+            {t("description")}
           </motion.p>
         </div>
 
