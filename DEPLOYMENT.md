@@ -47,15 +47,34 @@ This guide walks you through deploying the Trail Gliders Academy Next.js app on 
 
 ## Step 3 — Set environment variables (CRITICAL)
 
-This is the most important step. In the Node.js app settings, find the **Environment variables** section and add the following:
+The app needs 5 environment variables to run. There are **two ways** to set them:
+
+### Option A: Via GitHub Secrets (recommended if using GitHub Actions)
+
+If you're deploying via GitHub Actions, add these as repository secrets (Settings → Secrets and variables → Actions). The deploy workflow writes them to a `.env` file on the server automatically:
+
+| GitHub Secret | Value | Notes |
+|---|---|---|
+| `PROD_DATABASE_URL` | `postgresql://USER:PASS@HOST:5432/DB?schema=public` | PostgreSQL connection string (see Step 2) |
+| `PROD_NEXTAUTH_SECRET` | (generate — see below) | Random 32+ char string |
+| `PROD_NEXTAUTH_URL` | `https://trailgliders.com.ng` | Your production URL (no trailing slash) |
+| `PROD_SECRETS_MASTER_KEY` | (generate — see below) | Random 32+ char string — encrypts SMTP/payment secrets |
+
+The workflow also sets `NODE_ENV=production` automatically.
+
+### Option B: Via cPanel UI (for manual deploys only)
+
+If you're NOT using GitHub Actions, set these in cPanel → Setup Node.js App → Environment variables:
 
 | Variable | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | `file:/home/USERNAME/trailgliders/db/custom.db` | Replace `USERNAME` with your cPanel username |
+| `DATABASE_URL` | `postgresql://USER:PASS@HOST:5432/DB?schema=public` | PostgreSQL connection string (see Step 2) |
 | `NEXTAUTH_SECRET` | (generate — see below) | Random 32+ char string |
-| `NEXTAUTH_URL` | `https://trailgliders.edu.ng` | Your production URL |
-| `SECRETS_MASTER_KEY` | (generate — see below) | Random 32+ char string — used to encrypt SMTP/payment secrets |
+| `NEXTAUTH_URL` | `https://trailgliders.com.ng` | Your production URL |
+| `SECRETS_MASTER_KEY` | (generate — see below) | Random 32+ char string |
 | `NODE_ENV` | `production` | |
+
+> ⚠️ **Important**: cPanel UI env vars are only available to the running Node.js app — NOT to SSH sessions. If you use this option, `prisma db push` in the post-deploy script will fail. Use Option A (GitHub Secrets) if deploying via GitHub Actions.
 
 **Generate strong secrets in cPanel Terminal:**
 ```bash
@@ -63,7 +82,7 @@ openssl rand -base64 32    # for NEXTAUTH_SECRET
 openssl rand -base64 48    # for SECRETS_MASTER_KEY
 ```
 
-⚠️ **NEVER commit `.env` to git.** The `.env` file in this project is for local development only. On cPanel, env vars must be set via the cPanel UI.
+⚠️ **NEVER commit `.env` to git.** The `.gitignore` already excludes `.env*`.
 
 ---
 
@@ -80,7 +99,7 @@ bun install   # or: npm install
 # Build for production
 bun run build   # or: npm run build
 
-# Push database schema (creates the SQLite DB)
+# Push database schema (creates PostgreSQL tables)
 bun run db:push   # or: npm run db:push
 
 # Seed the database with default admin + site content
@@ -177,22 +196,80 @@ Get these from https://dashboard.paystack.com → Settings → API Keys & Webhoo
 
 ---
 
-## Step 10 — Set up automatic backups
+## Step 10 — Set up automatic database backups
 
-The SQLite database lives at `~/trailgliders/db/custom.db`. To back up:
+The database is PostgreSQL (not a file). Use `pg_dump` for backups:
 
 ### Manual backup (one-time)
 ```bash
-cp ~/trailgliders/db/custom.db ~/backups/custom-$(date +%Y%m%d).db
+mkdir -p ~/backups
+PGPASSWORD="YOUR_DB_PASSWORD" pg_dump \
+  --host=localhost \
+  --port=5432 \
+  --username=YOUR_DB_USER \
+  --dbname=YOUR_DB_NAME \
+  --no-owner --no-acl --clean --if-exists \
+  --file=~/backups/trailgliders-$(date +%Y%m%d).sql
 ```
 
 ### Automatic daily backup (cPanel Cron Job)
 1. cPanel → **Cron Jobs**
 2. Add a job that runs daily at 2 AM:
 ```
-0 2 * * * cp /home/USERNAME/trailgliders/db/custom.db /home/USERNAME/backups/custom-$(date +\%Y\%m\%d).db && find /home/USERNAME/backups/ -mtime +30 -delete
+0 2 * * * PGPASSWORD="YOUR_DB_PASSWORD" pg_dump --host=localhost --port=5432 --username=YOUR_DB_USER --dbname=YOUR_DB_NAME --no-owner --no-acl --clean --if-exists --file=/home/USERNAME/backups/trailgliders-$(date +\%Y\%m\%d).sql && find /home/USERNAME/backups/ -name "trailgliders-*.sql" -mtime +30 -delete
 ```
 This keeps the last 30 days of backups automatically.
+
+---
+
+## Automated deployment with GitHub Actions (recommended)
+
+The steps above describe a **one-time manual setup**. Once your site is live, you should automate future deploys with GitHub Actions so every push to `main` ships to production without you touching cPanel.
+
+We provide a complete CI/CD pipeline in `.github/workflows/deploy.yml` that:
+
+1. Builds the Next.js standalone bundle on GitHub-hosted runner
+2. `rsync`s the artifacts to your cPanel account over SSH
+3. Runs a post-deploy script that installs deps, pushes the Prisma schema, and restarts the Node.js app
+4. Creates automatic rollback backups before each deploy
+
+**Setup time**: ~15 minutes (generate SSH key, add 7 GitHub Secrets, push to main).
+
+👉 **Full setup instructions**: see [`GITHUB-ACTIONS-DEPLOY.md`](./GITHUB-ACTIONS-DEPLOY.md)
+
+The pipeline is safe to enable alongside the manual setup above — the first automated deploy just refreshes the code; it preserves your database, env vars, and uploads.
+
+### Quick start (if you've already done the manual setup above)
+
+1. **Generate SSH key**:
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/trailgliders-deploy
+   ```
+2. **Add public key to cPanel**: cPanel → SSH Access → Manage SSH Keys → Import → Authorize
+3. **Add 7 GitHub Secrets** (Settings → Secrets and variables → Actions):
+   - `CPANEL_HOST`, `CPANEL_USER`, `CPANEL_PORT`, `CPANEL_PATH`, `CPANEL_APP_NAME`
+   - `CPANEL_SSH_KEY` (entire private key file contents)
+   - `CPANEL_KNOWN_HOSTS` (output of `ssh-keyscan -H -p PORT HOST`)
+4. **Push to main** — the first deploy runs automatically
+
+### Manual local deploy (no GitHub needed)
+
+If GitHub Actions is broken or you need to deploy urgently:
+
+```bash
+# Create .env.deploy (NOT committed — already in .gitignore)
+cat > .env.deploy <<EOF
+CPANEL_HOST=server123.hosting.com
+CPANEL_USER=myuserna
+CPANEL_PORT=22
+CPANEL_PATH=/home/myuserna/trailgliders
+CPANEL_APP_NAME=trailgliders
+EOF
+
+./scripts/cpanel-deploy.sh
+```
+
+This does the same thing as the GitHub Actions workflow, but from your laptop.
 
 ---
 
@@ -273,7 +350,7 @@ Or use the universal runner:
 | What | Path |
 |---|---|
 | Project root | `~/trailgliders/` |
-| Database | `~/trailgliders/db/custom.db` |
+| Database | PostgreSQL (external or cPanel-managed — NOT a file) |
 | Backups | `~/backups/` (create this folder) |
 | App logs | cPanel → Setup Node.js App → View Logs |
 | Audit logs | In the database → `AuditLog` table (visible on admin dashboard) |

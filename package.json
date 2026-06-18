@@ -17,7 +17,12 @@
     "seed:slides": "tsx scripts/seed-slides.ts",
     "migrate:security": "tsx scripts/migrate-security.ts",
     "test:2fa": "tsx scripts/test-2fa.ts",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "backfill:slugs": "tsx scripts/backfill-slugs.ts",
+    "e2e": "npx playwright test",
+    "e2e:ui": "npx playwright test --ui",
+    "e2e:report": "npx playwright show-report",
+    "e2e:install": "npx playwright install --with-deps"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -92,6 +97,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.10.0",

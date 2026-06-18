@@ -1,0 +1,234 @@
+name: Deploy to Staging
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+
+concurrency:
+  group: staging-deploy-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_BIN: /home2/trailgli/nodevenv/trailgliders/24/bin
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Create deploy tarball
+        run: |
+          mkdir -p deploy-payload/app
+          cp -r .next/standalone/. deploy-payload/app/
+          mkdir -p deploy-payload/app/.next
+          cp -r .next/static deploy-payload/app/.next/static
+          cp -r public deploy-payload/app/public
+          mkdir -p deploy-payload/app/prisma
+          cp -r prisma/* deploy-payload/app/prisma/ 2>/dev/null || true
+          cp -r scripts deploy-payload/app/scripts
+          cp package.json deploy-payload/app/
+          [ -f package-lock.json ] && cp package-lock.json deploy-payload/app/ || true
+          [ -f bun.lock ] && cp bun.lock deploy-payload/app/ || true
+          [ -f run.sh ] && cp run.sh deploy-payload/app/ && chmod +x deploy-payload/app/run.sh || true
+          tar -czf deploy-payload.tar.gz --exclude='node_modules' -C deploy-payload/app .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-payload
+          path: deploy-payload.tar.gz
+          retention-days: 3
+
+  deploy-staging:
+    needs: [build]
+    if: vars.STAGING_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: staging-payload
+          path: ./
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_CPANEL_SSH_KEY || secrets.CPANEL_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          STAGING_HOST="${{ secrets.STAGING_CPANEL_HOST || secrets.CPANEL_HOST }}"
+          STAGING_PORT="${{ secrets.STAGING_CPANEL_PORT || secrets.CPANEL_PORT }}"
+          STAGING_USER="${{ secrets.STAGING_CPANEL_USER || secrets.CPANEL_USER }}"
+
+          ssh-keyscan -H -p ${STAGING_PORT} ${STAGING_HOST} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          printf '%s\n' \
+            "Host staging" \
+            "  HostName ${STAGING_HOST}" \
+            "  User ${STAGING_USER}" \
+            "  Port ${STAGING_PORT}" \
+            "  IdentityFile ~/.ssh/deploy_key" \
+            "  StrictHostKeyChecking accept-new" \
+            "  ServerAliveInterval 15" \
+            "  ServerAliveCountMax 20" \
+            "  ConnectTimeout 30" \
+            >> ~/.ssh/config
+
+      - name: Test SSH connection
+        run: ssh staging "echo 'SSH OK'; whoami"
+
+      - name: Upload and extract payload
+        run: |
+          STAGING_PATH="${{ secrets.STAGING_CPANEL_PATH }}"
+          STAGING_USER="${{ secrets.STAGING_CPANEL_USER || secrets.CPANEL_USER }}"
+          STAGING_HOST="${{ secrets.STAGING_CPANEL_HOST || secrets.CPANEL_HOST }}"
+          STAGING_PORT="${{ secrets.STAGING_CPANEL_PORT || secrets.CPANEL_PORT }}"
+
+          # Ensure staging directory exists
+          ssh staging "mkdir -p ${STAGING_PATH}/backups ${STAGING_PATH}/logs ${STAGING_PATH}/tmp"
+
+          # Upload tarball
+          scp -i ~/.ssh/deploy_key -P ${STAGING_PORT} \
+            deploy-payload.tar.gz \
+            "${STAGING_USER}@${STAGING_HOST}:${STAGING_PATH}/deploy-payload.tar.gz"
+
+          # Extract on server, preserving .env, backups, logs, uploads, tmp
+          ssh staging "
+            cd '${STAGING_PATH}'
+
+            # Save preserved dirs
+            for d in backups logs uploads tmp; do
+              [ -d \$d ] && mv \$d /tmp/tga-stg-\$d-\$\$ 2>/dev/null || true
+            done
+            for f in .env .env.local .env.production; do
+              [ -f \$f ] && cp \$f /tmp/tga-stg-\$f-\$\$ 2>/dev/null || true
+            done
+            # Save node_modules symlink (cPanel CloudLinux manages this)
+            NM_LINK=""
+            if [ -L node_modules ]; then
+              NM_LINK=\$(readlink node_modules)
+            fi
+
+            # Extract
+            tar -xzf deploy-payload.tar.gz
+            rm -f deploy-payload.tar.gz
+
+            # Restore node_modules symlink
+            if [ -n "\$NM_LINK" ]; then
+              rm -rf node_modules 2>/dev/null || true
+              ln -s "\$NM_LINK" node_modules
+            fi
+
+            # Restore
+            for d in backups logs uploads tmp; do
+              [ -d /tmp/tga-stg-\$d-\$\$ ] && mv /tmp/tga-stg-\$d-\$\$ '${STAGING_PATH}'/\$d 2>/dev/null || true
+            done
+            for f in .env .env.local .env.production; do
+              [ -f /tmp/tga-stg-\$f-\$\$ ] && mv /tmp/tga-stg-\$f-\$\$ '${STAGING_PATH}'/\$f 2>/dev/null || true
+            done
+
+            echo 'Staging payload extracted'
+          "
+
+      - name: Write .env from staging secrets
+        run: |
+          ssh staging "cat > '${{ secrets.STAGING_CPANEL_PATH }}/.env' << 'ENVEOF'
+          DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
+          NEXTAUTH_SECRET=${{ secrets.STAGING_NEXTAUTH_SECRET }}
+          NEXTAUTH_URL=${{ secrets.STAGING_NEXTAUTH_URL }}
+          SECRETS_MASTER_KEY=${{ secrets.STAGING_SECRETS_MASTER_KEY }}
+          NODE_ENV=production
+          ENVEOF
+          chmod 600 '${{ secrets.STAGING_CPANEL_PATH }}/.env'
+          echo '✓ staging .env written'"
+
+      - name: Run post-deploy script
+        timeout-minutes: 15
+        run: |
+          COMMIT="${GITHUB_SHA::7}"
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+
+          ssh staging "
+            export PATH=${{ env.NODE_BIN }}:\$PATH
+            cd '${{ secrets.STAGING_CPANEL_PATH }}'
+            chmod +x scripts/cpanel-post-deploy.sh
+            cp scripts/cpanel-post-deploy.sh post-deploy.sh
+            chmod +x post-deploy.sh
+            ./post-deploy.sh \
+              --app-name '${{ secrets.STAGING_CPANEL_APP_NAME }}' \
+              --commit '${COMMIT}' \
+              --version 'staging-${BRANCH}'
+          "
+
+      - name: Comment PR with staging URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `### 🚀 Staging deployed
+
+            **Branch:** \`${{ github.head_ref }}\`
+            **Commit:** \`${context.sha.substring(0, 7)}\`
+            **URL:** ${{ secrets.STAGING_NEXTAUTH_URL || 'https://staging.trailglidersacademy.com.ng' }}
+
+            The staging environment has been updated with this PR's changes.`;
+
+            // Find and update existing comment, or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Staging deployed')
+            );
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+  skip-notice:
+    needs: [build]
+    if: vars.STAGING_ENABLED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Staging deploy skipped — set STAGING_ENABLED=true in repo variables to enable."

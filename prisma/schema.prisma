@@ -6,49 +6,49 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 // ============ Auth ============
 
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
-  name            String
-  passwordHash    String
-  role            String   @default("EDITOR") // ADMIN | EDITOR — least-privilege default
-  failedAttempts  Int      @default(0)
-  lockedUntil     DateTime?
-  lastLoginAt     DateTime?
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  name                 String
+  passwordHash         String
+  role                 String               @default("EDITOR") // ADMIN | EDITOR — least-privilege default
+  failedAttempts       Int                  @default(0)
+  lockedUntil          DateTime?
+  lastLoginAt          DateTime?
   // 2FA (TOTP)
-  twoFactorSecret       String?   // encrypted base32 secret
-  twoFactorEnabled      Boolean   @default(false)
-  twoFactorBackupCodes  String?   // encrypted JSON array of hashed codes
-  twoFactorEnabledAt    DateTime?
+  twoFactorSecret      String? // encrypted base32 secret
+  twoFactorEnabled     Boolean              @default(false)
+  twoFactorBackupCodes String? // encrypted JSON array of hashed codes
+  twoFactorEnabledAt   DateTime?
   // Account lifecycle
-  isActive              Boolean   @default(true)   // soft disable without delete
-  mustEnable2FA         Boolean   @default(false)  // forced 2FA setup on next login
-  mustChangePassword    Boolean   @default(false)  // forced password change on next login
-  createdBy             String?   // user id of admin who created this account
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  auditLogs       AuditLog[]
-  passwordResetTokens PasswordResetToken[]
+  isActive             Boolean              @default(true) // soft disable without delete
+  mustEnable2FA        Boolean              @default(false) // forced 2FA setup on next login
+  mustChangePassword   Boolean              @default(false) // forced password change on next login
+  createdBy            String? // user id of admin who created this account
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  auditLogs            AuditLog[]
+  passwordResetTokens  PasswordResetToken[]
 }
 
 model SecurityPolicy {
-  id                          String   @id @default("singleton")
-  enforceTwoFactorForAdmins   Boolean  @default(true)
-  enforceTwoFactorForEditors  Boolean  @default(false)
-  minPasswordLength           Int      @default(12)
-  sessionTimeoutHours         Int      @default(8)
-  updatedAt        DateTime @updatedAt
+  id                         String   @id @default("singleton")
+  enforceTwoFactorForAdmins  Boolean  @default(true)
+  enforceTwoFactorForEditors Boolean  @default(false)
+  minPasswordLength          Int      @default(12)
+  sessionTimeoutHours        Int      @default(8)
+  updatedAt                  DateTime @updatedAt
 }
 
 model PasswordResetToken {
   id        String    @id @default(cuid())
-  email     String    // the email the reset was requested for
+  email     String // the email the reset was requested for
   tokenHash String    @unique // SHA-256 hash of the token (never store plaintext)
   expiresAt DateTime
   usedAt    DateTime?
@@ -63,7 +63,7 @@ model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String   // e.g. "login.success", "content.update", "content.delete"
+  action    String // e.g. "login.success", "content.update", "content.delete"
   entity    String?
   entityId  String?
   ip        String?
@@ -75,54 +75,54 @@ model AuditLog {
 // ============ Site content ============
 
 model SiteSettings {
-  id              String   @id @default("singleton")
-  schoolName      String   @default("Trail Gliders Academy")
-  shortName       String   @default("TGA")
-  tagline         String   @default("Excellence as You Glide Beyond Limits")
-  motto           String   @default("Knowledge • Character • Service")
-  founded         Int      @default(2009)
-  location        String   @default("Nsukka, Enugu State, Nigeria")
-  address         String   @default("15 Gliders Avenue, University Town, Nsukka, Enugu State, Nigeria")
-  phone           String   @default("+234 803 456 7890")
-  phoneAlt        String   @default("+234 701 234 5678")
-  email           String   @default("info@trailgliders.edu.ng")
-  admissionsEmail String   @default("admissions@trailgliders.edu.ng")
-  hours           String   @default("Monday – Friday: 7:30 AM – 3:30 PM")
-  crestUrl        String   @default("/crest/school-crest.png")
+  id                       String   @id @default("singleton")
+  schoolName               String   @default("Trail Gliders Academy")
+  shortName                String   @default("TGA")
+  tagline                  String   @default("Excellence as You Glide Beyond Limits")
+  motto                    String   @default("Knowledge • Character • Service")
+  founded                  Int      @default(2026)
+  location                 String   @default("Nsukka, Enugu State, Nigeria")
+  address                  String   @default("57 Obukpa Estate, Nsukka, Enugu State, Nigeria")
+  phone                    String   @default("+234 803 456 7890")
+  phoneAlt                 String   @default("+234 701 234 5678")
+  email                    String   @default("info@trailgliders.com.ng")
+  admissionsEmail          String   @default("admissions@trailgliders.com.ng")
+  hours                    String   @default("Monday – Friday: 7:30 AM – 3:30 PM")
+  crestUrl                 String   @default("/crest/school-crest.png")
   // Hero
-  heroBadge       String   @default("Admissions Open for 2026/2027 Session")
-  heroTitle1      String   @default("Where Young Minds")
-  heroTitle2      String   @default("Glide Beyond Limits")
-  heroDescription String
+  heroBadge                String   @default("Admissions Open for 2026/2027 Session")
+  heroTitle1               String   @default("Where Young Minds")
+  heroTitle2               String   @default("Glide Beyond Limits")
+  heroDescription          String
   // About
-  aboutHeading    String
-  aboutParagraph  String
-  missionText     String
-  visionText      String
+  aboutHeading             String
+  aboutParagraph           String
+  missionText              String
+  visionText               String
   // Admissions
-  admissionsHeading   String
-  admissionsParagraph String
-  admissionsDeadline  String   @default("Applications close July 31, 2026")
-  admissionsOpenDay   String   @default("Open Day: Saturday, 18 July 2026")
+  admissionsHeading        String
+  admissionsParagraph      String
+  admissionsDeadline       String   @default("Applications close August 31, 2026")
+  admissionsOpenDay        String   @default("Open Day: Saturday, 18 July 2026")
   // Apply Now button — globally configurable CTA
-  applyButtonEnabled  Boolean  @default(true)
-  applyButtonLabel    String   @default("Apply Now")
-  applyButtonType     String   @default("scroll") // scroll | external | mailto
-  applyButtonUrl      String   @default("#admissions") // section anchor, https URL, or mailto:
-  applyButtonStyle    String   @default("primary") // primary | outline
+  applyButtonEnabled       Boolean  @default(true)
+  applyButtonLabel         String   @default("Apply Now")
+  applyButtonType          String   @default("scroll") // scroll | external | mailto
+  applyButtonUrl           String   @default("#admissions") // section anchor, https URL, or mailto:
+  applyButtonStyle         String   @default("primary") // primary | outline
   // Social media URLs (empty string = hide the icon)
-  facebookUrl         String   @default("")
-  instagramUrl        String   @default("")
-  youtubeUrl          String   @default("")
-  twitterUrl          String   @default("")
+  facebookUrl              String   @default("")
+  instagramUrl             String   @default("")
+  youtubeUrl               String   @default("")
+  twitterUrl               String   @default("")
   // Footer "Resources" links (empty string = hide the link)
-  resourceAdmissionsPortal  String @default("")
-  resourceFeeStructure      String @default("")
-  resourceSchoolCalendar    String @default("")
-  resourceParentPortal      String @default("")
-  resourceAlumniNetwork     String @default("")
-  resourceCareers           String @default("")
-  updatedAt        DateTime @updatedAt
+  resourceAdmissionsPortal String   @default("")
+  resourceFeeStructure     String   @default("")
+  resourceSchoolCalendar   String   @default("")
+  resourceParentPortal     String   @default("")
+  resourceAlumniNetwork    String   @default("")
+  resourceCareers          String   @default("")
+  updatedAt                DateTime @updatedAt
 }
 
 model NewsletterSubscriber {
@@ -145,7 +145,7 @@ model Stat {
 
 model Value {
   id          String   @id @default(cuid())
-  icon        String   // lucide icon name
+  icon        String // lucide icon name
   title       String
   description String
   order       Int      @default(0)
@@ -154,54 +154,92 @@ model Value {
 
 model Program {
   id          String   @id @default(cuid())
+  slug        String   @unique
   name        String
   ages        String
   image       String
   color       String   @default("orange") // orange | navy | gold
   tagline     String
   description String
-  features    String   // newline-separated list
+  features    String // newline-separated list
+  // Detail-page fields (optional — empty = hide section on detail page)
+  body        String   @default("") // markdown / HTML for detail page
+  curriculum  String   @default("") // newline-separated curriculum topics
+  schedule    String   @default("") // free-text weekly schedule
+  gallery     String   @default("") // newline-separated image URLs
+  leadFaculty String   @default("") // name of lead teacher (or faculty id)
+  // i18n translations (JSON: { en, fr, ha, ig, yo }) — empty = fall back to English field
+  nameI18n        Json?
+  taglineI18n     Json?
+  descriptionI18n Json?
+  featuresI18n    Json?
+  bodyI18n        Json?
   order       Int      @default(0)
   updatedAt   DateTime @updatedAt
 }
 
 model Faculty {
-  id        String   @id @default(cuid())
-  name      String
-  role      String
-  image     String
-  bio       String
-  quote     String
-  order     Int      @default(0)
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  role          String
+  image         String
+  bio           String
+  quote         String
+  // Detail-page fields (optional)
+  qualifications String   @default("") // newline-separated list
+  subjects      String   @default("") // newline-separated subjects taught
+  email         String   @default("")
+  gallery       String   @default("") // newline-separated image URLs
+  yearsTeaching Int      @default(0)
+  // i18n translations (JSON: { en, fr, ha, ig, yo })
+  roleI18n  Json?
+  bioI18n   Json?
+  quoteI18n Json?
+  order         Int      @default(0)
+  updatedAt     DateTime @updatedAt
 }
 
 model Testimonial {
-  id        String   @id @default(cuid())
-  name      String
-  relation  String
-  quote     String
-  rating    Int      @default(5)
-  order     Int      @default(0)
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  relation    String
+  quote       String
+  rating      Int      @default(5)
+  // Detail-page fields (optional)
+  fullStory   String   @default("") // longer version of the quote
+  childName   String   @default("") // optional: child's name
+  yearEnrolled String  @default("") // e.g. "2024"
+  image       String   @default("") // optional photo
+  order       Int      @default(0)
+  updatedAt   DateTime @updatedAt
 }
 
 model NewsItem {
   id        String   @id @default(cuid())
+  slug      String   @unique
   date      DateTime
-  category  String   // News | Event
+  category  String // News | Event
   tag       String
   title     String
   excerpt   String
   image     String
+  body      String   @default("") // markdown / HTML content for detail page
+  author    String   @default("") // optional byline
+  gallery   String   @default("") // newline-separated image URLs
   published Boolean  @default(true)
+  // i18n translations (JSON: { en, fr, ha, ig, yo })
+  titleI18n   Json?
+  excerptI18n Json?
+  bodyI18n    Json?
   order     Int      @default(0)
   updatedAt DateTime @updatedAt
 }
 
 model AdmissionStep {
   id          String   @id @default(cuid())
-  step        String   // "01", "02", ...
+  step        String // "01", "02", ...
   title       String
   description String
   order       Int      @default(0)
@@ -209,38 +247,48 @@ model AdmissionStep {
 }
 
 model Faq {
-  id        String   @id @default(cuid())
-  question  String
-  answer    String
-  order     Int      @default(0)
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  question   String
+  answer     String
+  // Detail-page fields (optional)
+  category   String   @default("General") // for grouping on FAQ listing page
+  expanded   String   @default("") // longer answer for detail page
+  order      Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }
 
 model CampusItem {
   id          String   @id @default(cuid())
+  slug        String   @unique
   image       String
   title       String
   description String
+  // Detail-page fields (optional)
+  body        String   @default("") // markdown / HTML for detail page
+  gallery     String   @default("") // newline-separated image URLs
+  schedule    String   @default("") // when this facility is open/used
+  coach       String   @default("") // staff member responsible
   order       Int      @default(0)
   updatedAt   DateTime @updatedAt
 }
 
 model Slide {
-  id              String   @id @default(cuid())
-  image           String
-  videoUrl        String?
-  title           String
-  subtitle        String?
-  badge           String?
-  linkUrl         String?
-  linkLabel       String?
-  transitionType  String   @default("fade") // fade | slide | zoom | curtain
-  duration        Int      @default(6500) // milliseconds per slide
-  textPosition    String   @default("left") // left | center | right
-  parallaxDepth   Int      @default(15) // 0-50, percentage of parallax shift
-  active          Boolean  @default(true)
-  order           Int      @default(0)
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  image          String
+  videoUrl       String?
+  title          String
+  subtitle       String?
+  badge          String?
+  linkUrl        String?
+  linkLabel      String?
+  transitionType String   @default("fade") // fade | slide | zoom | curtain
+  duration       Int      @default(6500) // milliseconds per slide
+  textPosition   String   @default("left") // left | center | right
+  parallaxDepth  Int      @default(15) // 0-50, percentage of parallax shift
+  active         Boolean  @default(true)
+  order          Int      @default(0)
+  updatedAt      DateTime @updatedAt
 }
 
 // ============ Secrets vault ============
@@ -250,10 +298,10 @@ model Slide {
 model Secret {
   id            String    @id @default(cuid())
   key           String    @unique // e.g. SMTP_PASSWORD, PAYSTACK_SECRET_KEY
-  category      String    // app | email | payment | sms | storage
+  category      String // app | email | payment | sms | storage
   description   String?
-  ciphertext    String    // base64(iv) + "." + base64(encrypted) + "." + base64(authTag)
-  previewHint   String?   // last 4 chars of plaintext, shown masked in UI
+  ciphertext    String // base64(iv) + "." + base64(encrypted) + "." + base64(authTag)
+  previewHint   String? // last 4 chars of plaintext, shown masked in UI
   lastRotatedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
