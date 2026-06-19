@@ -50,6 +50,8 @@ jobs:
         run: npx prisma db push --accept-data-loss --skip-generate
 
       - name: Build
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: npm run build
 
       - name: Stage deploy payload
