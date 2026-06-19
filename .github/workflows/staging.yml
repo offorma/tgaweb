@@ -92,12 +92,17 @@ jobs:
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.STAGING_CPANEL_SSH_KEY || secrets.CPANEL_SSH_KEY }}" > ~/.ssh/deploy_key
+          SSH_KEY="${{ secrets.STAGING_CPANEL_SSH_KEY }}"
+          [ -z "$SSH_KEY" ] && SSH_KEY="${{ secrets.CPANEL_SSH_KEY }}"
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          STAGING_HOST="${{ secrets.STAGING_CPANEL_HOST || secrets.CPANEL_HOST }}"
-          STAGING_PORT="${{ secrets.STAGING_CPANEL_PORT || secrets.CPANEL_PORT }}"
-          STAGING_USER="${{ secrets.STAGING_CPANEL_USER || secrets.CPANEL_USER }}"
+          STAGING_HOST="${{ secrets.STAGING_CPANEL_HOST }}"
+          [ -z "$STAGING_HOST" ] && STAGING_HOST="${{ secrets.CPANEL_HOST }}"
+          STAGING_PORT="${{ secrets.STAGING_CPANEL_PORT }}"
+          [ -z "$STAGING_PORT" ] && STAGING_PORT="${{ secrets.CPANEL_PORT }}"
+          STAGING_USER="${{ secrets.STAGING_CPANEL_USER }}"
+          [ -z "$STAGING_USER" ] && STAGING_USER="${{ secrets.CPANEL_USER }}"
 
           ssh-keyscan -H -p ${STAGING_PORT} ${STAGING_HOST} >> ~/.ssh/known_hosts 2>/dev/null || true
 
@@ -119,9 +124,12 @@ jobs:
       - name: Upload and extract payload
         run: |
           STAGING_PATH="${{ secrets.STAGING_CPANEL_PATH }}"
-          STAGING_USER="${{ secrets.STAGING_CPANEL_USER || secrets.CPANEL_USER }}"
-          STAGING_HOST="${{ secrets.STAGING_CPANEL_HOST || secrets.CPANEL_HOST }}"
-          STAGING_PORT="${{ secrets.STAGING_CPANEL_PORT || secrets.CPANEL_PORT }}"
+          STAGING_USER="${{ secrets.STAGING_CPANEL_USER }}"
+          [ -z "$STAGING_USER" ] && STAGING_USER="${{ secrets.CPANEL_USER }}"
+          STAGING_HOST="${{ secrets.STAGING_CPANEL_HOST }}"
+          [ -z "$STAGING_HOST" ] && STAGING_HOST="${{ secrets.CPANEL_HOST }}"
+          STAGING_PORT="${{ secrets.STAGING_CPANEL_PORT }}"
+          [ -z "$STAGING_PORT" ] && STAGING_PORT="${{ secrets.CPANEL_PORT }}"
 
           # Ensure staging directory exists
           ssh staging "mkdir -p ${STAGING_PATH}/backups ${STAGING_PATH}/logs ${STAGING_PATH}/tmp"
@@ -163,17 +171,22 @@ jobs:
             echo 'Staging payload extracted'
           "
 
-      - name: Write .env from staging secrets
+      - name: Copy static files to public_html
         run: |
-          ssh staging "cat > '${{ secrets.STAGING_CPANEL_PATH }}/.env' << 'ENVEOF'
-          DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
-          NEXTAUTH_SECRET=${{ secrets.STAGING_NEXTAUTH_SECRET }}
-          NEXTAUTH_URL=${{ secrets.STAGING_NEXTAUTH_URL }}
-          SECRETS_MASTER_KEY=${{ secrets.STAGING_SECRETS_MASTER_KEY }}
-          NODE_ENV=production
-          ENVEOF
-          chmod 600 '${{ secrets.STAGING_CPANEL_PATH }}/.env'
-          echo '✓ staging .env written'"
+          ssh staging "
+            STAGING_PATH='${{ secrets.STAGING_CPANEL_PATH }}'
+            PUBLIC_HTML=\"\$(dirname \$STAGING_PATH)/public_html\"
+
+            # Next.js static assets (JS/CSS chunks)
+            rm -rf \$PUBLIC_HTML/_next/static
+            mkdir -p \$PUBLIC_HTML/_next
+            cp -r \$STAGING_PATH/.next/static \$PUBLIC_HTML/_next/static
+
+            # Public folder (images, favicon, robots.txt, etc.)
+            cp -r \$STAGING_PATH/public/* \$PUBLIC_HTML/ 2>/dev/null || true
+
+            echo \"Static files copied to \$PUBLIC_HTML\"
+          "
 
       - name: Run post-deploy script
         timeout-minutes: 15

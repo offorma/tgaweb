@@ -79,10 +79,10 @@ if [ -f "$APP_ROOT/.env" ]; then
   source "$APP_ROOT/.env"
   set +a
 else
-  err ".env file not found at $APP_ROOT/.env"
-  err "The deploy workflow should have created it from GitHub Secrets."
-  err "Required secrets: PROD_DATABASE_URL, PROD_NEXTAUTH_SECRET, PROD_NEXTAUTH_URL, PROD_SECRETS_MASTER_KEY"
-  err "Continuing, but runtime DB queries will fail."
+  log "No .env file found — env vars should be configured in cPanel UI"
+  log "(cPanel → Setup Node.js App → Environment Variables)"
+  log "Note: cPanel UI env vars are available to the running app via Passenger,"
+  log "but NOT in SSH sessions. This is expected."
 fi
 
 # Verify DATABASE_URL is set before proceeding with DB operations
