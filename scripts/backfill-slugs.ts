@@ -24,8 +24,7 @@ async function backfill() {
   for (const item of news) {
     const base = slugify(item.title);
     const slug = await ensureUniqueSlug(base, (s) =>
-      db.newsItem.findUnique({ where: { slug: s } }),
-    , item.id);
+      db.newsItem.findUnique({ where: { slug: s } }), item.id);
     await db.newsItem.update({ where: { id: item.id }, data: { slug } });
     console.log(`  ✓ ${item.title} → ${slug}`);
   }
@@ -36,8 +35,7 @@ async function backfill() {
   for (const item of programs) {
     const base = slugify(item.name);
     const slug = await ensureUniqueSlug(base, (s) =>
-      db.program.findUnique({ where: { slug: s } }),
-    , item.id);
+      db.program.findUnique({ where: { slug: s } }), item.id);
     await db.program.update({ where: { id: item.id }, data: { slug } });
     console.log(`  ✓ ${item.name} → ${slug}`);
   }
@@ -48,8 +46,7 @@ async function backfill() {
   for (const item of faculty) {
     const base = slugify(item.name);
     const slug = await ensureUniqueSlug(base, (s) =>
-      db.faculty.findUnique({ where: { slug: s } }),
-    , item.id);
+      db.faculty.findUnique({ where: { slug: s } }), item.id);
     await db.faculty.update({ where: { id: item.id }, data: { slug } });
     console.log(`  ✓ ${item.name} → ${slug}`);
   }
@@ -60,8 +57,7 @@ async function backfill() {
   for (const item of testimonials) {
     const base = slugify(item.name);
     const slug = await ensureUniqueSlug(base, (s) =>
-      db.testimonial.findUnique({ where: { slug: s } }),
-    , item.id);
+      db.testimonial.findUnique({ where: { slug: s } }), item.id);
     await db.testimonial.update({ where: { id: item.id }, data: { slug } });
     console.log(`  ✓ ${item.name} → ${slug}`);
   }
@@ -72,8 +68,7 @@ async function backfill() {
   for (const item of faqs) {
     const base = slugify(item.question);
     const slug = await ensureUniqueSlug(base, (s) =>
-      db.faq.findUnique({ where: { slug: s } }),
-    , item.id);
+      db.faq.findUnique({ where: { slug: s } }), item.id);
     await db.faq.update({ where: { id: item.id }, data: { slug } });
     console.log(`  ✓ ${item.question.slice(0, 50)}... → ${slug}`);
   }
@@ -84,8 +79,7 @@ async function backfill() {
   for (const item of campus) {
     const base = slugify(item.title);
     const slug = await ensureUniqueSlug(base, (s) =>
-      db.campusItem.findUnique({ where: { slug: s } }),
-    , item.id);
+      db.campusItem.findUnique({ where: { slug: s } }), item.id);
     await db.campusItem.update({ where: { id: item.id }, data: { slug } });
     console.log(`  ✓ ${item.title} → ${slug}`);
   }
