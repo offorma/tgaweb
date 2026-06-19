@@ -50,6 +50,8 @@ jobs:
         run: npx prisma db push --accept-data-loss --skip-generate
 
       - name: Build
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: npm run build
 
       - name: Stage deploy payload
@@ -183,24 +185,22 @@ jobs:
             ls node_modules/.prisma 2>/dev/null | head -5
           "
 
-      - name: Write .env from secrets
+      - name: Copy static files to public_html
         run: |
-          # Write the .env file on the cPanel server from GitHub Secrets.
-          # This ensures post-deploy.sh (which runs via SSH) has access to
-          # DATABASE_URL and other env vars that cPanel's UI env vars don't
-          # expose to SSH sessions.
-          #
-          # The .env file is preserved across deploys (see "Upload and extract"
-          # step above), so it only needs to be written once or when secrets change.
-          ssh cpanel "cat > ${{ secrets.CPANEL_PATH }}/.env << 'ENVEOF'
-          DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
-          NEXTAUTH_SECRET=${{ secrets.PROD_NEXTAUTH_SECRET }}
-          NEXTAUTH_URL=${{ secrets.PROD_NEXTAUTH_URL }}
-          SECRETS_MASTER_KEY=${{ secrets.PROD_SECRETS_MASTER_KEY }}
-          NODE_ENV=production
-          ENVEOF
-          chmod 600 ${{ secrets.CPANEL_PATH }}/.env
-          echo '✓ .env written ($(wc -l < ${{ secrets.CPANEL_PATH }}/.env) lines)'"
+          ssh cpanel "
+            DEPLOY_PATH='${{ secrets.CPANEL_PATH }}'
+            PUBLIC_HTML=\"\$(dirname \$DEPLOY_PATH)/public_html\"
+
+            # Next.js static assets (JS/CSS chunks)
+            rm -rf \$PUBLIC_HTML/_next/static
+            mkdir -p \$PUBLIC_HTML/_next
+            cp -r \$DEPLOY_PATH/.next/static \$PUBLIC_HTML/_next/static
+
+            # Public folder (images, favicon, robots.txt, etc.)
+            cp -r \$DEPLOY_PATH/public/* \$PUBLIC_HTML/ 2>/dev/null || true
+
+            echo \"Static files copied to \$PUBLIC_HTML\"
+          "
 
       - name: Run post-deploy script
         timeout-minutes: 15
