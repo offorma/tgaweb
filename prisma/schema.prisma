@@ -2,7 +2,11 @@
 // All site content is stored in the DB so admins can edit via /admin
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Build for both the GitHub Actions runner (debian-openssl-3.0.x) AND
+  // common cPanel architectures. The deploy tarball ships the right binary
+  // for the cPanel server's runtime, so no engine download happens there.
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x", "linux-musl-openssl-3.0.x", "linux-musl-openssl-1.1.x"]
 }
 
 datasource db {

@@ -37,6 +37,14 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Push database schema to staging
+        # Run prisma db push FROM the GitHub runner (avoids Prisma CLI crash
+        # on cPanel's restricted jailshell environment).
+        if: ${{ vars.STAGING_ENABLED == 'true' }}
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npx prisma db push --accept-data-loss --skip-generate
+
       - name: Build
         run: npm run build
 
@@ -54,7 +62,14 @@ jobs:
           [ -f package-lock.json ] && cp package-lock.json deploy-payload/app/ || true
           [ -f bun.lock ] && cp bun.lock deploy-payload/app/ || true
           [ -f run.sh ] && cp run.sh deploy-payload/app/ && chmod +x deploy-payload/app/run.sh || true
-          tar -czf deploy-payload.tar.gz --exclude='node_modules' -C deploy-payload/app .
+          # Bundle Prisma client + engine binaries (avoids needing prisma CLI on cPanel)
+          mkdir -p deploy-payload/app/node_modules
+          cp -r node_modules/@prisma deploy-payload/app/node_modules/@prisma
+          cp -r node_modules/.prisma deploy-payload/app/node_modules/.prisma
+          cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
+          tar -czf deploy-payload.tar.gz \
+            --exclude='node_modules/prisma/build' \
+            -C deploy-payload/app .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -127,21 +142,15 @@ jobs:
             for f in .env .env.local .env.production; do
               [ -f \$f ] && cp \$f /tmp/tga-stg-\$f-\$\$ 2>/dev/null || true
             done
-            # Save node_modules symlink (cPanel CloudLinux manages this)
-            NM_LINK=""
-            if [ -L node_modules ]; then
-              NM_LINK=\$(readlink node_modules)
-            fi
+
+            # Remove existing node_modules (could be cPanel nodevenv symlink
+            # OR our previous bundled node_modules). Our tarball ships a fresh
+            # node_modules/@prisma + node_modules/.prisma from the CI build.
+            rm -rf node_modules 2>/dev/null || true
 
             # Extract
             tar -xzf deploy-payload.tar.gz
             rm -f deploy-payload.tar.gz
-
-            # Restore node_modules symlink
-            if [ -n "\$NM_LINK" ]; then
-              rm -rf node_modules 2>/dev/null || true
-              ln -s "\$NM_LINK" node_modules
-            fi
 
             # Restore
             for d in backups logs uploads tmp; do

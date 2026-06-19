@@ -82,7 +82,7 @@ else
   err ".env file not found at $APP_ROOT/.env"
   err "The deploy workflow should have created it from GitHub Secrets."
   err "Required secrets: PROD_DATABASE_URL, PROD_NEXTAUTH_SECRET, PROD_NEXTAUTH_URL, PROD_SECRETS_MASTER_KEY"
-  err "Continuing, but prisma db push will likely fail."
+  err "Continuing, but runtime DB queries will fail."
 fi
 
 # Verify DATABASE_URL is set before proceeding with DB operations
@@ -141,53 +141,60 @@ else
 fi
 log "package manager: $PM ($(which $PM))"
 
-# ─── STEP 1: Install production dependencies ───────────────────────────────
-step "1/5  Installing production dependencies"
-# cPanel's CloudLinux NodeJS Selector manages node_modules as a symlink to
-# the nodevenv virtual environment. We must use npm install through cPanel's
-# system — never ship a real node_modules directory in the deploy tarball.
-log "  running $PM install (production only)..."
-if [ "$PM" = "bun" ]; then
-  bun install --production --frozen-lockfile 2>&1 | tail -20 || \
-  bun install --production 2>&1 | tail -20
-elif [ "$PM" = "yarn" ]; then
-  yarn install --production --frozen-lockfile 2>&1 | tail -20
+# ─── STEP 1: Verify bundled dependencies ────────────────────────────────────
+step "1/5  Verifying bundled dependencies"
+# The deploy tarball now bundles node_modules/@prisma, node_modules/.prisma,
+# and node_modules/prisma from the GitHub Actions build. This avoids running
+# `npm install --production` on cPanel, which was reinstalling a fresh Prisma
+# CLI that crashed when trying to download its engine binary.
+if [ -d "$APP_ROOT/node_modules/@prisma/client" ]; then
+  log "  ✓ Bundled @prisma/client present"
 else
-  npm install --production --no-audit --no-fund --legacy-peer-deps 2>&1 | tail -20
-fi
-log "  ✓ dependencies installed"
-
-# ─── STEP 2: Generate Prisma client ────────────────────────────────────────
-step "2/5  Generating Prisma client"
-if [ -f "$APP_ROOT/prisma/schema.prisma" ]; then
-  if [ "$DRY_RUN" = false ]; then
-    ./node_modules/.bin/prisma generate 2>&1 | tail -10
-    log "  ✓ Prisma client generated"
-  else
-    log "  (dry-run — skipping)"
-  fi
-else
-  log "  ! no prisma/schema.prisma — skipping"
+  err "  Bundled @prisma/client NOT found in node_modules/"
+  err "  The deploy tarball should include node_modules/@prisma — check deploy.yml"
+  err "  Continuing, but the app may fail to start."
 fi
 
-# ─── STEP 3: Push database schema ──────────────────────────────────────────
-step "3/5  Pushing database schema (idempotent)"
-# This is safe to run repeatedly — Prisma only adds missing tables/columns.
-# It does NOT drop data unless the schema change requires it.
-if [ -f "$APP_ROOT/prisma/schema.prisma" ]; then
-  if [ "$DRY_RUN" = false ]; then
-    # Use the env var set in cPanel's Node.js app settings
-    if ./node_modules/.bin/prisma db push --accept-data-loss --skip-generate 2>&1 | tail -15; then
-      log "  ✓ Database schema pushed"
-    else
-      err "  prisma db push failed — check DATABASE_URL env var"
-      err "  Continuing anyway (existing schema may still work)"
-    fi
-  else
-    log "  (dry-run — skipping)"
+if [ -d "$APP_ROOT/node_modules/.prisma" ]; then
+  log "  ✓ Generated Prisma client present (from CI)"
+else
+  err "  Generated Prisma client (.prisma) NOT found"
+  err "  The deploy tarball should include node_modules/.prisma — check deploy.yml"
+fi
+
+# Check if @prisma/client's runtime engine binary is present
+ENGINE_BIN=$(find "$APP_ROOT/node_modules/.prisma/client" -name "libquery_engine*" -type f 2>/dev/null | head -1)
+if [ -n "$ENGINE_BIN" ]; then
+  log "  ✓ Prisma query engine binary: $(basename "$ENGINE_BIN")"
+else
+  err "  Prisma query engine binary not found in node_modules/.prisma/client/"
+  err "  App will crash at runtime — the engine binary must be bundled from CI"
+fi
+
+# ─── STEP 2: Prisma client (already generated in CI) ──────────────────────
+step "2/5  Verifying Prisma client (generated in CI)"
+if [ -f "$APP_ROOT/node_modules/.prisma/client/index.js" ]; then
+  log "  ✓ Prisma client present (bundled from GitHub Actions build)"
+elif [ -f "$APP_ROOT/node_modules/@prisma/client" ]; then
+  log "  ✓ @prisma/client present"
+  if [ ! -f "$APP_ROOT/node_modules/.prisma/client/index.js" ]; then
+    err "  ⚠ @prisma/client is present but the generated client is missing"
+    err "    The deploy tarball should include node_modules/.prisma — check deploy.yml"
   fi
 else
-  log "  ! no prisma schema — skipping"
+  err "  Prisma client not found. The deploy tarball should bundle node_modules/@prisma"
+  err "  and node_modules/.prisma (generated during the GitHub Actions build)."
+fi
+
+# ─── STEP 3: Database schema (already pushed in CI) ────────────────────────
+step "3/5  Database schema (already pushed in CI)"
+log "  Schema is pushed from the GitHub Actions runner (not on cPanel)"
+log "  This avoids the Prisma CLI crash on cPanel where jailshell blocks"
+log "  the engine binary download."
+if [ -z "${DATABASE_URL:-}" ]; then
+  err "  DATABASE_URL not set in .env — runtime DB queries will fail"
+else
+  log "  DATABASE_URL is set (length: ${#DATABASE_URL})"
 fi
 
 # ─── STEP 4: Restart the Node.js app ───────────────────────────────────────

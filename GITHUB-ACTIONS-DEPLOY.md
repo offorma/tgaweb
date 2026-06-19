@@ -330,18 +330,22 @@ concurrency:
 ### Build job
 
 1. Checks out the repo (with full history for `git describe`)
-2. Sets up Node 20 + Bun 1.1
-3. Runs `npm ci` (or `bun install --frozen-lockfile` if `bun.lock` exists)
-4. Runs `npx prisma generate`
-5. Runs `npm run build` — produces `.next/standalone/server.js`
-6. Stages everything into `deploy-payload/app/`:
+2. Sets up Node 22
+3. Runs `npm ci`
+4. Runs `npx prisma generate` — generates the Prisma Client (with engine binaries for multiple platforms via `binaryTargets` in schema.prisma)
+5. **Runs `npx prisma db push` against the production DB** — pushes schema changes from the runner (avoids running Prisma CLI on cPanel, which crashes when jailshell blocks the engine binary download). Uses `PROD_DATABASE_URL` secret.
+6. Runs `npm run build` — produces `.next/standalone/server.js`
+7. Stages everything into `deploy-payload/app/`:
    - Standalone server + bundled node_modules
    - `.next/static` (CSS/JS chunks)
    - `public/` (images, fonts)
    - `prisma/` (schema)
    - `scripts/` (seed scripts)
    - `package.json` + lockfile
-7. Uploads the payload as a GitHub Actions artifact
+   - **`node_modules/@prisma` + `node_modules/.prisma` + `node_modules/prisma`** — bundled so the runtime client + engine binaries are available on cPanel without needing `prisma` CLI there
+8. Uploads the payload as a GitHub Actions artifact
+
+> **Why prisma db push runs in CI, not on cPanel**: Shared cPanel hosts restrict outbound internet from SSH sessions. When the post-deploy script ran `prisma db push` on cPanel, Prisma tried to download its native engine binary, the download was blocked, and Prisma crashed. Running `prisma db push` from the GitHub runner (which has full internet) sidesteps this entirely. The runner connects to your Postgres database directly using `PROD_DATABASE_URL`.
 
 ### Deploy job
 
@@ -363,23 +367,25 @@ concurrency:
 
 The `post-deploy.sh` script (runs ON cPanel) does:
 
-1. **Installs production deps** — only if `package.json` changed (idempotent)
-2. **Generates Prisma client** — matches the freshly-deployed schema
-3. **Runs `prisma db push`** — applies schema changes to PostgreSQL (additive; never drops data unless schema requires it)
+1. **Verifies bundled dependencies** — checks that `node_modules/@prisma`, `node_modules/.prisma`, and the engine binary are present (shipped from CI). No `npm install` runs on cPanel.
+2. **Verifies Prisma client** — confirms the generated client (from CI) is present
+3. **Verifies DATABASE_URL** — checks `.env` was written by the workflow
 4. **Restarts the Node.js app** — three methods, tried in order:
    - `touch tmp/restart.txt` (Phusion Passenger)
    - `uapi Nodejs restart_app app_name=...` (cPanel UAPI)
    - `passenger-config restart-app` (if available)
 5. **Writes deploy history** to `logs/deploy-history.log`
 
+> **No `prisma` CLI commands run on cPanel** — both `prisma generate` and `prisma db push` happen in the GitHub Actions build job. This avoids the Prisma CLI crash that occurs when cPanel's jailshell blocks the engine binary download.
+
 ### What's preserved between deploys
 
-The rsync `--exclude` list ensures these NEVER get overwritten:
-- Environment variables (set via cPanel UI, not files)
-- PostgreSQL database (external — rsync can't touch it)
+The tarball extraction preserves these directories/files:
+- `.env` (written by the workflow from GitHub Secrets)
 - `backups/` — previous deployments for rollback
 - `logs/` — deploy history and runtime logs
 - `uploads/`, `tmp/` — temp files including `restart.txt`
+- PostgreSQL database (external — not a file, can't be touched)
 
 ### What's replaced every deploy
 
@@ -470,30 +476,45 @@ cPanel sometimes blocks rsync. Check:
 2. **Browser cache** — Hard refresh (Ctrl+Shift+R) or incognito
 3. **CDN cache** — If behind Cloudflare, purge the cache
 
-### "prisma db push" fails
+### Prisma CLI crashes on cPanel (minified index.js dump in logs)
 
-This means `DATABASE_URL` is not available when the post-deploy script runs via SSH.
+If you see a stderr dump starting with `/home/.../nodevenv/.../node_modules/prisma/build/index.js:49` followed by minified JS source code, the Prisma CLI binary crashed on cPanel.
 
-**Root cause**: cPanel's "Setup Node.js App → Environment variables" UI only injects vars into the Passenger-managed Node process — NOT into SSH sessions. The post-deploy script runs via SSH and can't see those vars.
+**Root cause**: cPanel's jailshell blocks outbound internet from SSH sessions. When the post-deploy script ran `prisma db push` or `prisma generate`, Prisma tried to download its native engine binary, the download was blocked, and Prisma crashed.
 
-**Fix**: The deploy workflow writes a `.env` file from GitHub Secrets. Make sure you've added these 4 secrets:
+**Fix**: This is already fixed in the current deploy workflow. The workflow now:
+1. Runs `prisma generate` AND `prisma db push` from the GitHub Actions runner (which has full internet)
+2. Bundles `node_modules/@prisma`, `node_modules/.prisma`, and `node_modules/prisma` in the deploy tarball
+3. The post-deploy script no longer runs any `prisma` CLI commands — it just verifies the bundled client is present and restarts the app
 
-| Secret | Value |
-|---|---|
-| `PROD_DATABASE_URL` | `postgresql://user:pass@host:5432/db?schema=public` |
-| `PROD_NEXTAUTH_SECRET` | (random 32+ chars) |
-| `PROD_NEXTAUTH_URL` | `https://yourdomain.com` |
-| `PROD_SECRETS_MASTER_KEY` | (random 32+ chars) |
+If you're still seeing this error after updating to the latest workflow, your cPanel server might have a stale `post-deploy.sh`. Run the deploy again — the workflow copies the latest `post-deploy.sh` to the server on each run.
 
-After adding the secrets, re-run the workflow. The "Write .env from secrets" step will create the `.env` file on the server, and the post-deploy script will source it before running `prisma db push`.
+### "prisma db push" fails in the build job
 
-**Verify the .env was written**: SSH in and check:
+If the "Push database schema to production" step fails in the GitHub Actions build job (not on cPanel), check:
+
+1. **`PROD_DATABASE_URL` secret is set** — Settings → Secrets → Actions → `PROD_DATABASE_URL` must be a valid PostgreSQL connection string
+2. **Database is reachable from GitHub Actions** — if your Postgres is on cPanel localhost, GitHub Actions can't reach it. Use an external managed Postgres (Neon, Supabase) OR ensure your cPanel Postgres allows remote connections
+3. **Database exists** — create the database + user in cPanel → PostgreSQL Databases before the first deploy
+4. **Connection string format** — must be `postgresql://USER:PASS@HOST:5432/DB?schema=public`
+
+**Verify the connection from your laptop**:
 ```bash
-cat ~/trailgliders/.env
-# Should show DATABASE_URL=postgresql://...
+psql "postgresql://user:pass@host:5432/db?schema=public" -c "SELECT 1;"
 ```
+If that fails, the connection string or database setup is wrong.
 
-**If .env exists but prisma still fails**: Check the post-deploy log for the `DATABASE_URL is set` line. If it says "not set", the .env file is malformed (check for line-break issues in the secret value).
+### ".env not found" error in post-deploy logs
+
+The post-deploy script sources `.env` to get `DATABASE_URL` for runtime. If it can't find `.env`:
+
+1. Check the "Write .env from secrets" step ran successfully in the workflow
+2. SSH in and verify:
+   ```bash
+   cat ~/trailgliders/.env
+   # Should show DATABASE_URL=postgresql://...
+   ```
+3. If `.env` is missing, the `PROD_DATABASE_URL` (and other `PROD_*`) secrets aren't set in GitHub
 
 ### Detail pages return 404 after deploy
 

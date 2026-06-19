@@ -41,6 +41,14 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Push database schema to production
+        # Run prisma db push FROM the GitHub runner (which has full internet +
+        # correct architecture). This avoids the Prisma CLI crash on cPanel
+        # where jailshell blocks the engine binary download.
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: npx prisma db push --accept-data-loss --skip-generate
+
       - name: Build
         run: npm run build
 
@@ -60,7 +68,16 @@ jobs:
           [ -f run.sh ] && cp run.sh deploy-payload/app/ && chmod +x deploy-payload/app/run.sh || true
 
       - name: Create deploy tarball
-        run: tar -czf deploy-payload.tar.gz --exclude='node_modules' -C deploy-payload/app .
+        # Include node_modules/@prisma so the runtime Prisma Client + engine
+        # binaries are available on cPanel (avoids needing prisma CLI there).
+        run: |
+          mkdir -p deploy-payload/app/node_modules
+          cp -r node_modules/@prisma deploy-payload/app/node_modules/@prisma
+          cp -r node_modules/.prisma deploy-payload/app/node_modules/.prisma
+          cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
+          tar -czf deploy-payload.tar.gz \
+            --exclude='node_modules/prisma/build' \
+            -C deploy-payload/app .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -141,21 +158,16 @@ jobs:
             for f in .env .env.local .env.production; do
               [ -f \$f ] && cp \$f /tmp/tga-preserve-\$f-\$\$ 2>/dev/null || true
             done
-            # Save node_modules symlink (cPanel CloudLinux manages this)
-            NM_LINK=""
-            if [ -L node_modules ]; then
-              NM_LINK=\$(readlink node_modules)
-            fi
+
+            # Remove existing node_modules (could be a cPanel nodevenv symlink
+            # OR our previous bundled node_modules). Our tarball ships a fresh
+            # node_modules/@prisma + node_modules/.prisma so the runtime client
+            # and engine binaries are present without needing prisma CLI on cPanel.
+            rm -rf node_modules 2>/dev/null || true
 
             # Extract new payload (overwrites everything else)
             tar -xzf deploy-payload.tar.gz
             rm -f deploy-payload.tar.gz
-
-            # Restore node_modules symlink
-            if [ -n "\$NM_LINK" ]; then
-              rm -rf node_modules 2>/dev/null || true
-              ln -s "\$NM_LINK" node_modules
-            fi
 
             # Restore preserved dirs and files
             for d in backups logs uploads tmp; do
@@ -166,6 +178,9 @@ jobs:
             done
 
             echo 'Payload extracted'
+            echo 'node_modules contents:'
+            ls node_modules/@prisma 2>/dev/null | head -5
+            ls node_modules/.prisma 2>/dev/null | head -5
           "
 
       - name: Write .env from secrets
