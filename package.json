@@ -4,7 +4,9 @@
   "private": true,
   "description": "Trail Gliders Academy — a premier Nigerian primary school website with admin CMS, secrets vault, 2FA, and cinematic hero slideshow.",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "prebuild": "prisma generate",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production node .next/standalone/server.js",
     "start:bun": "NODE_ENV=production bun .next/standalone/server.js",

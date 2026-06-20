@@ -20,6 +20,14 @@ import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
 
+/** Convert a string to a URL-friendly slug */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 const DEFAULT_ADMIN = {
   email: "admin@trailgliders.edu.ng",
   name: "Site Administrator",
@@ -213,6 +221,7 @@ async function main() {
         data: [
           {
             name: "Early Years (Nursery)",
+            slug: slugify("Early Years (Nursery)"),
             ages: "Ages 3 – 5",
             image: "/images/library.jpg",
             color: "orange",
@@ -225,6 +234,7 @@ async function main() {
           },
           {
             name: "Lower Primary",
+            slug: slugify("Lower Primary"),
             ages: "Primary 1 – 3",
             image: "/images/computer-lab.jpg",
             color: "navy",
@@ -237,6 +247,7 @@ async function main() {
           },
           {
             name: "Upper Primary",
+            slug: slugify("Upper Primary"),
             ages: "Primary 4 – 6",
             image: "/images/science.jpg",
             color: "gold",
@@ -261,6 +272,7 @@ async function main() {
         data: [
           {
             name: "Dr. Mrs. Adaeze Okonkwo",
+            slug: slugify("Dr. Mrs. Adaeze Okonkwo"),
             role: "Head of School",
             image: "/images/teacher-1.jpg",
             bio: "PhD in Early Childhood Education (University of Nigeria, Nsukka). 22 years shaping young minds with warmth and rigor.",
@@ -269,6 +281,7 @@ async function main() {
           },
           {
             name: "Mr. Chijioke Eze",
+            slug: slugify("Mr. Chijioke Eze"),
             role: "Head, Upper Primary",
             image: "/images/teacher-2.jpg",
             bio: "B.Ed Mathematics, Nsukka. National Common Entrance Coach of the Year, 2022 & 2024.",
@@ -277,6 +290,7 @@ async function main() {
           },
           {
             name: "Mrs. Ngozi Ugwu",
+            slug: slugify("Mrs. Ngozi Ugwu"),
             role: "Head, Lower Primary",
             image: "/images/teacher-3.jpg",
             bio: "Montessori-certified educator with 15 years guiding early readers into confident, curious learners.",
@@ -285,6 +299,7 @@ async function main() {
           },
           {
             name: "Mr. Emeka Nwosu",
+            slug: slugify("Mr. Emeka Nwosu"),
             role: "STEM & Robotics Lead",
             image: "/images/teacher-4.jpg",
             bio: "First-class B.Sc Computer Science. Coached two national robotics championship teams.",
@@ -305,6 +320,7 @@ async function main() {
         data: [
           {
             name: "Mr. & Mrs. Obiora",
+            slug: slugify("Mr. & Mrs. Obiora"),
             relation: "Parents of Zara (P4) & Tobe (P2)",
             quote:
               "Trail Gliders has been a second family for our children. The teachers genuinely care, and our kids have grown not just academically but in confidence and character. We could not have asked for more.",
@@ -313,6 +329,7 @@ async function main() {
           },
           {
             name: "Barr. Chinwe Anike",
+            slug: slugify("Barr. Chinwe Anike"),
             relation: "Parent of Chidinma (P6 graduate)",
             quote:
               "My daughter gained admission into three top federal colleges. The preparation here is exceptional — but what I value most is the moral foundation she received. She is a Glider for life.",
@@ -321,6 +338,7 @@ async function main() {
           },
           {
             name: "Engr. Ifeanyi Okeke",
+            slug: slugify("Engr. Ifeanyi Okeke"),
             relation: "Parent of Kamsi (P3)",
             quote:
               "The robotics and coding program is on another level. My son built his first app at age 8 and presented it at the school science fair. Trail Gliders sees the future and prepares our kids for it.",
@@ -329,6 +347,7 @@ async function main() {
           },
           {
             name: "Dr. Amara Eze",
+            slug: slugify("Dr. Amara Eze"),
             relation: "Parent of Adaeze (Nursery 2)",
             quote:
               "The early years team is magical. My daughter literally runs into school every morning. She comes home singing, full of stories, and already reading simple words at age 4.",
@@ -352,6 +371,7 @@ async function main() {
             category: "Event",
             tag: "Sports",
             title: "Trail Gliders Annual Sports Day 2026",
+            slug: slugify("Trail Gliders Annual Sports Day 2026"),
             excerpt:
               "Four houses. One spirit. Join us at the Nsukka Township Stadium for a day of athletics, music, and family fun.",
             image: "/images/sports.jpg",
@@ -363,6 +383,7 @@ async function main() {
             category: "News",
             tag: "STEM",
             title: "Our Robotics Team Qualifies for Nationals",
+            slug: slugify("Our Robotics Team Qualifies for Nationals"),
             excerpt:
               "The GliderBots placed second at the South-East regional FTC qualifier and now head to Lagos for the national championship.",
             image: "/images/computer-lab.jpg",
@@ -374,6 +395,7 @@ async function main() {
             category: "Event",
             tag: "Admissions",
             title: "Open Day & Campus Tour",
+            slug: slugify("Open Day & Campus Tour"),
             excerpt:
               "Prospective families are invited to walk our halls, meet our teachers, and discover what makes a Glider education different.",
             image: "/images/campus.jpg",
@@ -434,30 +456,35 @@ async function main() {
         data: [
           {
             question: "What are the school's operating hours?",
+            slug: slugify("What are the school's operating hours"),
             answer:
               "The school day runs from 7:30 AM to 3:30 PM, Monday through Friday. After-school clubs run until 4:30 PM. The early years program offers a half-day option ending at 12:30 PM.",
             order: 0,
           },
           {
             question: "Do you offer school transport?",
+            slug: slugify("Do you offer school transport"),
             answer:
               "Yes. Our fleet of GPS-tracked school buses serves Nsukka town, the University of Nigeria campus, and surrounding towns including Enugu-Ezike, Opi, and Obukpa. Routes are reviewed annually.",
             order: 1,
           },
           {
             question: "What curriculum do you follow?",
+            slug: slugify("What curriculum do you follow"),
             answer:
               "We follow the Nigerian Universal Basic Education (UBE) curriculum, enriched with Cambridge Primary content for English, Maths, and Science, plus coding, robotics, and creative arts.",
             order: 2,
           },
           {
             question: "What is the fee structure?",
+            slug: slugify("What is the fee structure"),
             answer:
               "Our fees are competitive and transparent. A detailed fee schedule is shared during the admissions interview. We offer sibling discounts and flexible payment plans for families.",
             order: 3,
           },
           {
             question: "When does admission open?",
+            slug: slugify("When does admission open"),
             answer:
               "Admissions for the new academic session open every January. Mid-year transfers are considered subject to availability. We recommend applying early as classes fill quickly.",
             order: 4,
@@ -477,36 +504,42 @@ async function main() {
           {
             image: "/images/sports.jpg",
             title: "Sports & Athletics",
+            slug: slugify("Sports & Athletics"),
             description: "Football, athletics, swimming, and table tennis",
             order: 0,
           },
           {
             image: "/images/arts.jpg",
             title: "Creative Arts",
+            slug: slugify("Creative Arts"),
             description: "Painting, sculpture, drama, and choir",
             order: 1,
           },
           {
             image: "/images/science.jpg",
             title: "STEM Club",
+            slug: slugify("STEM Club"),
             description: "Robotics, coding, and science fairs",
             order: 2,
           },
           {
             image: "/images/library.jpg",
             title: "Reading Corner",
+            slug: slugify("Reading Corner"),
             description: "A 6,000-book library to spark imagination",
             order: 3,
           },
           {
             image: "/images/computer-lab.jpg",
             title: "Digital Lab",
+            slug: slugify("Digital Lab"),
             description: "Modern ICT suites with 1:1 devices",
             order: 4,
           },
           {
             image: "/images/graduation.jpg",
             title: "Graduation Day",
+            slug: slugify("Graduation Day"),
             description: "Celebrating the next generation of leaders",
             order: 5,
           },

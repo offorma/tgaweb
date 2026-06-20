@@ -117,8 +117,16 @@ cp package.json "$TMPDIR/app/"
 [ -f bun.lock ] && cp bun.lock "$TMPDIR/app/"
 [ -f run.sh ] && cp run.sh "$TMPDIR/app/" && chmod +x "$TMPDIR/app/run.sh"
 
-# Create tarball WITHOUT node_modules (cPanel CloudLinux manages its own)
-tar -czf "$TMPDIR/deploy.tar.gz" --exclude='node_modules' -C "$TMPDIR/app" .
+# Bundle Prisma client + engine binaries (avoids needing prisma CLI on cPanel)
+mkdir -p "$TMPDIR/app/node_modules"
+cp -r node_modules/@prisma "$TMPDIR/app/node_modules/@prisma"
+cp -r node_modules/.prisma "$TMPDIR/app/node_modules/.prisma"
+cp -r node_modules/prisma "$TMPDIR/app/node_modules/prisma"
+
+# Create tarball with bundled Prisma (exclude prisma build dir to save space)
+tar -czf "$TMPDIR/deploy.tar.gz" \
+  --exclude='node_modules/prisma/build' \
+  -C "$TMPDIR/app" .
 TARBALL_SIZE=$(du -sh "$TMPDIR/deploy.tar.gz" | cut -f1)
 echo "✓ Tarball created ($TARBALL_SIZE)"
 
@@ -183,6 +191,18 @@ $SSH_CMD "
   rm -rf /tmp/tga-deploy-\$\$
 
   echo '✓ Extracted'
+
+  # Push database schema (sync tables with Prisma schema)
+  if [ -f .env ]; then
+    set -a; source .env; set +a
+  fi
+  if [ -n \"\${DATABASE_URL:-}\" ]; then
+    echo 'Pushing database schema...'
+    npx prisma db push --accept-data-loss --skip-generate
+    echo '✓ Database schema pushed'
+  else
+    echo '⚠ DATABASE_URL not set — skipping schema push'
+  fi
 
   # Run post-deploy
   chmod +x scripts/cpanel-post-deploy.sh

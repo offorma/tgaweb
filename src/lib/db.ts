@@ -4,17 +4,24 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// In production, only log errors + warnings (NEVER log full queries with bound params)
-// In dev, log queries for debugging
-const logConfig =
-  process.env.NODE_ENV === 'production'
-    ? (['error', 'warn'] as const)
-    : (['query', 'error', 'warn'] as const)
+// Lazy-initialize PrismaClient so that `import { db }` doesn't crash
+// during `next build` when the generated client or DATABASE_URL is absent.
+function createClient(): PrismaClient {
+  const logConfig =
+    process.env.NODE_ENV === 'production'
+      ? (['error', 'warn'] as const)
+      : (['query', 'error', 'warn'] as const)
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: logConfig,
-  })
+  return new PrismaClient({ log: logConfig })
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// Use a Proxy so the PrismaClient is only instantiated on first use,
+// not at module-evaluation time (which happens during `next build`).
+export const db: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    if (!globalForPrisma.prisma) {
+      globalForPrisma.prisma = createClient()
+    }
+    return (globalForPrisma.prisma as any)[prop]
+  },
+})
