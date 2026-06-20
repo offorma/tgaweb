@@ -80,7 +80,7 @@ const SECTIONS = [
     ]},
   ]},
   { id: "cloudinary", label: "Cloudinary", tip: "Cloud storage credentials for image and file uploads. These are read from environment variables on first seed, then managed here.", fields: [
-    { name: "cloudinaryCloudName", label: "Cloud Name", type: "text", required: true, tip: "Your Cloudinary cloud name (e.g. dagd5c6pb)." },
+    { name: "cloudinaryCloudName", label: "Cloud Name", type: "text", required: true, tip: "Your Cloudinary cloud name." },
     { name: "cloudinaryApiKey", label: "API Key", type: "text", required: true, tip: "Your Cloudinary API key." },
     { name: "cloudinaryApiSecret", label: "API Secret", type: "text", required: true, tip: "Your Cloudinary API secret. Keep this confidential." },
   ]},

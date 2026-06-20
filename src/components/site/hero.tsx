@@ -172,11 +172,7 @@ export function Hero({
   const variants = getTransitionVariants(transitionType, direction);
   const kenBurns = getKenBurnsVariants(transitionType, slide.parallaxDepth || 15);
   const hasVideo = slide.videoUrl && slide.videoUrl.trim() !== "";
-  const textPos = getTextPositionClasses(slide.textPosition || "left");
   const parallaxDepth = (slide.parallaxDepth || 15) / 100;
-
-  // Show crest only on "left" position (since center/right take full width)
-  const showCrest = (slide.textPosition || "left") === "left";
 
   return (
     <section
@@ -260,154 +256,157 @@ export function Hero({
 
       {/* ====== Content ====== */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-32 w-full">
-        <div className="grid lg:grid-cols-12 gap-12 items-center">
-          {/* Text content */}
-          <div className={textPos.container + " text-white"}>
-            <AnimatePresence mode="wait">
+        <div className="relative min-h-[340px] lg:min-h-[420px]">
+        <AnimatePresence mode="sync">
+          {activeSlides.map((s, i) => {
+            if (i !== currentSlide) return null;
+            const pos = getTextPositionClasses(s.textPosition || "left");
+            const isCrestVisible = (s.textPosition || "left") === "left";
+            return (
               <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
+                key={s.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: TRANSITION_DURATION / 1000, ease: [0.4, 0, 0.2, 1] }}
+                className="absolute inset-0 grid lg:grid-cols-12 gap-12 items-center"
               >
-                {(slide.badge || heroBadge) && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[var(--orange)]/90 to-[var(--orange-dark)]/90 backdrop-blur-md border border-[var(--orange-light)]/40 text-xs font-bold tracking-wide text-white shadow-lg shadow-orange-500/30 ${textPos.buttons === "justify-center" ? "" : textPos.buttons === "justify-end" ? "ml-auto" : ""}`}
+                {/* Text content */}
+                <div className={pos.container + " text-white"}>
+                  {(s.badge || heroBadge) && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[var(--orange)]/90 to-[var(--orange-dark)]/90 backdrop-blur-md border border-[var(--orange-light)]/40 text-xs font-bold tracking-wide text-white shadow-lg shadow-orange-500/30 ${pos.buttons === "justify-center" ? "" : pos.buttons === "justify-end" ? "ml-auto" : ""}`}
+                    >
+                      <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                      {s.badge || heroBadge}
+                    </motion.div>
+                  )}
+
+                  <motion.h1
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.3 }}
+                    className={`mt-6 font-serif font-bold leading-[1.05] text-5xl sm:text-6xl lg:text-7xl text-balance text-shadow-hero ${pos.title}`}
                   >
-                    <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                    {slide.badge || heroBadge}
-                  </motion.div>
-                )}
+                    {s.title || heroTitle1}
+                  </motion.h1>
 
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.3 }}
-                  className={`mt-6 font-serif font-bold leading-[1.05] text-5xl sm:text-6xl lg:text-7xl text-balance text-shadow-hero ${textPos.title}`}
-                >
-                  {slide.title || heroTitle1}
-                </motion.h1>
+                  {s.subtitle && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.5 }}
+                      className={`mt-6 max-w-xl text-lg text-white/85 leading-relaxed text-balance ${pos.subtitle}`}
+                    >
+                      {s.subtitle}
+                    </motion.p>
+                  )}
 
-                {slide.subtitle && (
-                  <motion.p
+                  <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.5 }}
-                    className={`mt-6 max-w-xl text-lg text-white/85 leading-relaxed text-balance ${textPos.subtitle}`}
+                    transition={{ duration: 0.6, delay: 0.7 }}
+                    className={`mt-9 flex flex-wrap items-center gap-4 ${pos.buttons}`}
                   >
-                    {slide.subtitle}
-                  </motion.p>
-                )}
+                    {s.linkUrl && s.linkLabel ? (
+                      <ApplyButton
+                        settings={settings}
+                        size="lg"
+                        className="shadow-2xl shadow-orange-500/40 hover:scale-105 transition-all px-8 h-13 text-base"
+                      >
+                        {s.linkLabel}
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </ApplyButton>
+                    ) : (
+                      <ApplyButton
+                        settings={settings}
+                        size="lg"
+                        className="shadow-2xl shadow-orange-500/40 hover:scale-105 transition-all px-8 h-13 text-base"
+                      >
+                        {t("beginApplication")}
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </ApplyButton>
+                    )}
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => document.getElementById("campus-life")?.scrollIntoView({ behavior: "smooth" })}
+                      className="bg-white/5 backdrop-blur-md border-white/30 text-white hover:bg-white/15 hover:text-white rounded-full px-8 h-13 text-base"
+                    >
+                      <Play className="mr-2 h-4 w-4 fill-white" />
+                      {t("exploreCampus")}
+                    </Button>
+                  </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.7 }}
-                  className={`mt-9 flex flex-wrap items-center gap-4 ${textPos.buttons}`}
-                >
-                  {slide.linkUrl && slide.linkLabel ? (
-                    <ApplyButton
-                      settings={settings}
-                      size="lg"
-                      className="shadow-2xl shadow-orange-500/40 hover:scale-105 transition-all px-8 h-13 text-base"
-                    >
-                      {slide.linkLabel}
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </ApplyButton>
-                  ) : (
-                    <ApplyButton
-                      settings={settings}
-                      size="lg"
-                      className="shadow-2xl shadow-orange-500/40 hover:scale-105 transition-all px-8 h-13 text-base"
-                    >
-                      {t("beginApplication")}
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </ApplyButton>
-                  )}
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    onClick={() => document.getElementById("campus-life")?.scrollIntoView({ behavior: "smooth" })}
-                    className="bg-white/5 backdrop-blur-md border-white/30 text-white hover:bg-white/15 hover:text-white rounded-full px-8 h-13 text-base"
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.9 }}
+                    className={`mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 text-white/75 ${pos.trust}`}
                   >
-                    <Play className="mr-2 h-4 w-4 fill-white" />
-                    {t("exploreCampus")}
-                  </Button>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.9 }}
-                  className={`mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 text-white/75 ${textPos.trust}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="flex">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <Star key={i} className="h-4 w-4 fill-[var(--gold)] text-[var(--gold)]" />
-                      ))}
+                    <div className="flex items-center gap-2">
+                      <div className="flex">
+                        {[0, 1, 2, 3, 4].map((j) => (
+                          <Star key={j} className="h-4 w-4 fill-[var(--gold)] text-[var(--gold)]" />
+                        ))}
+                      </div>
+                      <span className="text-sm">
+                        <span className="font-bold text-white">4.9/5</span> {t("rating")}
+                      </span>
                     </div>
-                    <span className="text-sm">
-                      <span className="font-bold text-white">4.9/5</span> {t("rating")}
-                    </span>
-                  </div>
-                  <div className="h-5 w-px bg-white/20" />
-                  <div className="text-sm">
-                    <span className="font-bold text-white">850+</span> {t("alumni")}
-                  </div>
-                  <div className="h-5 w-px bg-white/20" />
-                  <div className="text-sm">
-                    {t("ubeApproved")}
-                  </div>
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Crest — only shown on "left" text position */}
-          {showCrest && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.4 }}
-              className="lg:col-span-5 flex justify-center lg:justify-end"
-            >
-              <div className="relative">
-                <div className="absolute -inset-8 rounded-full border border-white/10 animate-rotate-slow" />
-                <div
-                  className="absolute -inset-12 rounded-full border-2 border-dashed border-[var(--orange)]/20 animate-rotate-slow"
-                  style={{ animationDirection: "reverse", animationDuration: "40s" }}
-                />
-                <div className="absolute inset-0 rounded-full bg-[var(--orange)]/30 blur-3xl animate-pulse-glow" />
-                <div className="relative h-72 w-72 lg:h-80 lg:w-80 rounded-full overflow-hidden ring-4 ring-white/40 shadow-2xl shadow-orange-900/50">
-                  <img
-                    src={crest}
-                    alt="Trail Gliders Academy Crest"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-[var(--navy)]/20 to-transparent" />
+                    <div className="h-5 w-px bg-white/20" />
+                    <div className="text-sm">
+                      <span className="font-bold text-white">850+</span> {t("alumni")}
+                    </div>
+                    <div className="h-5 w-px bg-white/20" />
+                    <div className="text-sm">
+                      {t("ubeApproved")}
+                    </div>
+                  </motion.div>
                 </div>
 
-                <motion.div
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -bottom-6 -left-6 lg:-left-16 glass-card-dark text-white px-6 py-4 rounded-2xl shadow-2xl border-2 border-[var(--orange)]/30"
-                >
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--orange-light)] font-bold flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3" />
-                    {t("ourPromise")}
+                {/* Crest — only shown on "left" text position */}
+                {isCrestVisible && (
+                  <div className="lg:col-span-5 flex justify-center lg:justify-end">
+                    <div className="relative">
+                      <div className="absolute -inset-8 rounded-full border border-white/10 animate-rotate-slow" />
+                      <div
+                        className="absolute -inset-12 rounded-full border-2 border-dashed border-[var(--orange)]/20 animate-rotate-slow"
+                        style={{ animationDirection: "reverse", animationDuration: "40s" }}
+                      />
+                      <div className="absolute inset-0 rounded-full bg-[var(--orange)]/30 blur-3xl animate-pulse-glow" />
+                      <div className="relative h-72 w-72 lg:h-80 lg:w-80 rounded-full overflow-hidden ring-4 ring-white/40 shadow-2xl shadow-orange-900/50">
+                        <img
+                          src={crest}
+                          alt="Trail Gliders Academy Crest"
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-[var(--navy)]/20 to-transparent" />
+                      </div>
+
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute -bottom-6 -left-6 lg:-left-16 glass-card-dark text-white px-6 py-4 rounded-2xl shadow-2xl border-2 border-[var(--orange)]/30"
+                      >
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--orange-light)] font-bold flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3" />
+                          {t("ourPromise")}
+                        </div>
+                        <div className="text-base font-serif italic mt-1 max-w-[220px] leading-snug">
+                          "{tagline}"
+                        </div>
+                      </motion.div>
+                    </div>
                   </div>
-                  <div className="text-base font-serif italic mt-1 max-w-[220px] leading-snug">
-                    "{tagline}"
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          )}
+                )}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
         </div>
       </div>
 
