@@ -107,7 +107,7 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
   const [data, setData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingSection, setSavingSection] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const load = async () => {
@@ -132,11 +132,14 @@ export default function AdminSettingsPage() {
     setData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleSaveSection = async (sectionId: string) => {
+    const section = SECTIONS.find((s) => s.id === sectionId);
+    if (!section) return;
+
+    setSavingSection(sectionId);
     try {
+      // Build payload with ALL current data (API expects the full object)
       const payload = { ...data };
-      // Convert numbers
       if (payload.founded) payload.founded = Number(payload.founded);
 
       const res = await fetch("/api/admin/settings", {
@@ -148,14 +151,16 @@ export default function AdminSettingsPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Save failed");
       }
+      const json = await res.json();
+      setData(json.settings || payload);
       toast({
-        title: "Settings saved",
-        description: "All changes are now live on the website.",
+        title: `${section.label} saved`,
+        description: "Changes are now live on the website.",
       });
     } catch (e: any) {
       toast({ title: "Save failed", description: e.message, variant: "destructive" });
     } finally {
-      setSaving(false);
+      setSavingSection(null);
     }
   };
 
@@ -171,26 +176,7 @@ export default function AdminSettingsPage() {
     <>
       <AdminPageHeader
         title="Site Settings"
-        description="Edit global content for the homepage, contact details, and branding."
-        action={
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-[var(--navy)] hover:bg-[var(--navy-light)] text-white"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-1.5" />
-                Save All Changes
-              </>
-            )}
-          </Button>
-        }
+        description="Edit global content for the homepage, contact details, and branding. Each section has its own save button."
       />
 
       {/* Search bar */}
@@ -254,13 +240,34 @@ export default function AdminSettingsPage() {
         {SECTIONS.map((section) => (
           <TabsContent key={section.id} value={section.id}>
             <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6">
-              <h2 className="font-serif text-xl font-bold text-[var(--navy)] mb-1 flex items-center gap-1.5">
-                {section.label}
-                <HelpTip content={section.tip} />
-              </h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                {'Changes are saved when you click "Save All Changes" above.'}
-              </p>
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="font-serif text-xl font-bold text-[var(--navy)] mb-1 flex items-center gap-1.5">
+                    {section.label}
+                    <HelpTip content={section.tip} />
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Edit the fields below and click save when done.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => handleSaveSection(section.id)}
+                  disabled={savingSection === section.id}
+                  className="bg-[var(--navy)] hover:bg-[var(--navy-light)] text-white flex-shrink-0"
+                >
+                  {savingSection === section.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-1.5" />
+                      Save {section.label}
+                    </>
+                  )}
+                </Button>
+              </div>
               <div className="grid sm:grid-cols-2 gap-5">
                 {section.fields.map((f) => (
                   <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
@@ -411,7 +418,7 @@ function SearchResults({
           {matches.length} {matches.length === 1 ? "result" : "results"} for "{search}"
         </h3>
         <span className="text-xs text-muted-foreground">
-          Edit fields below — click "Save All Changes" when done.
+          Edit fields below — then go to the relevant tab to save.
         </span>
       </div>
       <div className="grid sm:grid-cols-2 gap-5">
