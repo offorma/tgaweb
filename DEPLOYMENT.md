@@ -1,360 +1,334 @@
 # Deploying Trail Gliders Academy on cPanel
 
-This guide walks you through deploying the Trail Gliders Academy Next.js app on **shared cPanel hosting with Node.js support** (Namecheap, HostGator, Bluehost Nigeria, etc.).
+This guide walks you through deploying the Trail Gliders Academy Next.js app on **shared cPanel hosting with CloudLinux Node.js Selector** (WGH Servers, Namecheap, HostGator, etc.).
 
 ---
 
 ## Prerequisites
 
-- cPanel hosting with **"Setup Node.js App"** feature (under Software section)
-- Node.js 18+ available in cPanel's Node selector
-- SSH/Terminal access (optional but recommended — cPanel → Terminal)
-- Your domain pointed at the cPanel account (e.g. `trailgliders.edu.ng`)
+- cPanel hosting with **CloudLinux Node.js Selector** (under Software section)
+- Node.js 22+ available in the selector
+- SSH access to the server
+- Your domain pointed at the cPanel account
+- PostgreSQL database created via cPanel
 
 ---
 
-## Step 1 — Upload the project
+## Server layout
 
-### Option A: Via Git (recommended)
-
-1. In cPanel, open **Git Version Control** (under Files)
-2. Click **Create** and clone your project repo into `~/trailgliders`
-3. Or push from local: `git push origin main` after adding cPanel as a remote
-
-### Option B: Via File Manager
-
-1. Zip your project locally (exclude `node_modules`, `.next`, `db/*.db`)
-2. In cPanel → **File Manager** → upload the zip to `public_html/` (or a subfolder)
-3. Extract to a folder like `~/trailgliders`
-
-**⚠️ Important**: NEVER put the project inside `public_html` directly — Node.js apps should live in your home directory (e.g. `~/trailgliders`), with only static files (if any) in `public_html`. cPanel's Node app server will handle routing.
+| What | Production | Staging |
+|---|---|---|
+| App root | `~/prod.trailglidersacademy.com.ng/` | `~/staging.trailglidersacademy.com.ng/` |
+| Node.js version | 22 (`/opt/alt/alt-nodejs22/root/usr/bin`) | 24 (`/opt/alt/alt-nodejs24/root/usr/bin`) |
+| Startup file | `server.js` | `server.js` |
+| Static files | `~/public_html/prod.trailglidersacademy.com.ng/` | `~/public_html/staging.trailglidersacademy.com.ng/` |
+| Deploy logs | `~/prod.trailglidersacademy.com.ng/logs/deploy-history.log` | `~/staging.trailglidersacademy.com.ng/logs/deploy-history.log` |
+| App stdout/stderr | `~/prod` (Passenger output file) | `~/staging` (if exists) |
+| Database | PostgreSQL via `127.0.0.200:5432` | PostgreSQL via `127.0.0.200:5432` |
 
 ---
 
-## Step 2 — Set up the Node.js app
+## Step 1 -- Set up the Node.js app in cPanel
 
-1. In cPanel, open **Software → Setup Node.js App**
+1. In cPanel, open **Software > Node.js Selector** (CloudLinux)
 2. Click **Create Application**
 3. Fill in:
-   - **Node.js version**: 18.x or 20.x (highest available)
+   - **Node.js version**: 22.x (production) or 24.x (staging)
    - **Application mode**: Production
-   - **Application root**: `trailgliders` (the folder you uploaded to)
-   - **Application URL**: your domain (e.g. `trailgliders.edu.ng`)
-   - **Application startup file**: `server.js` (after build — see below)
+   - **Application root**: `prod.trailglidersacademy.com.ng`
+   - **Application URL**: your domain
+   - **Application startup file**: `server.js`
 4. Click **Create**
 
 ---
 
-## Step 3 — Set environment variables (CRITICAL)
+## Step 2 -- Set environment variables (via cPanel UI)
 
-The app needs 5 environment variables to run. There are **two ways** to set them:
-
-### Option A: Via GitHub Secrets (recommended if using GitHub Actions)
-
-If you're deploying via GitHub Actions, add these as repository secrets (Settings → Secrets and variables → Actions). The deploy workflow writes them to a `.env` file on the server automatically:
-
-| GitHub Secret | Value | Notes |
-|---|---|---|
-| `PROD_DATABASE_URL` | `postgresql://USER:PASS@HOST:5432/DB?schema=public` | PostgreSQL connection string (see Step 2) |
-| `PROD_NEXTAUTH_SECRET` | (generate — see below) | Random 32+ char string |
-| `PROD_NEXTAUTH_URL` | `https://trailgliders.com.ng` | Your production URL (no trailing slash) |
-| `PROD_SECRETS_MASTER_KEY` | (generate — see below) | Random 32+ char string — encrypts SMTP/payment secrets |
-
-The workflow also sets `NODE_ENV=production` automatically.
-
-### Option B: Via cPanel UI (for manual deploys only)
-
-If you're NOT using GitHub Actions, set these in cPanel → Setup Node.js App → Environment variables:
+Set environment variables in **Node.js Selector > your app > Environment variables**. This is more secure than `.env` files -- the vars are injected by Passenger into the running Node.js process only.
 
 | Variable | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://USER:PASS@HOST:5432/DB?schema=public` | PostgreSQL connection string (see Step 2) |
-| `NEXTAUTH_SECRET` | (generate — see below) | Random 32+ char string |
-| `NEXTAUTH_URL` | `https://trailgliders.com.ng` | Your production URL |
-| `SECRETS_MASTER_KEY` | (generate — see below) | Random 32+ char string |
+| `DATABASE_URL` | `postgresql://USER:PASS@127.0.0.200:5432/DB?schema=public` | PostgreSQL connection string |
+| `NEXTAUTH_SECRET` | (random 32+ char string) | `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | `https://prod.trailglidersacademy.com.ng` | Your production URL (no trailing slash) |
+| `SECRETS_MASTER_KEY` | (random 48+ char string) | `openssl rand -base64 48` |
 | `NODE_ENV` | `production` | |
+| `HOSTNAME` | `0.0.0.0` | Required for Passenger to bind correctly |
+| `PORT` | `3001` | Or whichever port Passenger assigns |
 
-> ⚠️ **Important**: cPanel UI env vars are only available to the running Node.js app — NOT to SSH sessions. If you use this option, `prisma db push` in the post-deploy script will fail. Use Option A (GitHub Secrets) if deploying via GitHub Actions.
-
-**Generate strong secrets in cPanel Terminal:**
-```bash
-openssl rand -base64 32    # for NEXTAUTH_SECRET
-openssl rand -base64 48    # for SECRETS_MASTER_KEY
-```
-
-⚠️ **NEVER commit `.env` to git.** The `.gitignore` already excludes `.env*`.
+**Important**: cPanel UI env vars are only available to the Passenger-managed app process -- NOT to SSH sessions. When running scripts via SSH, you must export `DATABASE_URL` manually (see Step 4).
 
 ---
 
-## Step 4 — Install dependencies and build
+## Step 3 -- Deploy the app
 
-Open cPanel **Terminal** (or use SSH) and run:
+### Option A: GitHub Actions (recommended)
 
-```bash
-cd ~/trailgliders
+Push to `main` -- the workflow in `.github/workflows/deploy.yml` handles everything:
+1. Builds Next.js standalone bundle on GitHub runner
+2. Generates and bundles Prisma client (with Linux query engine binaries)
+3. Compiles TypeScript scripts to `scripts/dist/` (runnable with plain `node`)
+4. Uploads tarball to cPanel via SCP
+5. Pushes database schema via `prisma db push`
+6. Restarts the app via Passenger
 
-# Install dependencies (use whichever is available)
-bun install   # or: npm install
+**Required GitHub Secrets** (Settings > Secrets and variables > Actions):
 
-# Build for production
-bun run build   # or: npm run build
+| Secret | Example |
+|---|---|
+| `CPANEL_HOST` | `131.153.148.82` |
+| `CPANEL_USER` | `trailgli` |
+| `CPANEL_PORT` | `22` |
+| `CPANEL_PATH` | `/home2/trailgli/prod.trailglidersacademy.com.ng` |
+| `CPANEL_APP_NAME` | `prod.trailglidersacademy.com.ng` |
+| `CPANEL_SSH_KEY` | (entire private key file contents) |
+| `PROD_DATABASE_URL` | `postgresql://...` |
 
-# Push database schema (creates PostgreSQL tables)
-bun run db:push   # or: npm run db:push
+For staging, also set:
 
-# Seed the database with default admin + site content
-bun run db:seed   # or: npm run db:seed
+| Secret/Variable | Notes |
+|---|---|
+| `STAGING_CPANEL_PATH` | `/home2/trailgli/staging.trailglidersacademy.com.ng` |
+| `STAGING_DATABASE_URL` | Staging PostgreSQL connection string |
+| `STAGING_ENABLED` | Set to `true` as a **repo variable** (not secret) |
 
-# Seed hero slides
-bun run seed:slides   # or: npm run seed:slides
-
-# Run security migration (ensures admin role + policy)
-bun run migrate:security   # or: npm run migrate:security
-```
-
-**If `bun` is not available in cPanel**, use npm:
-```bash
-npm install
-npm run build
-npm run db:push
-npm run db:seed
-npm run seed:slides
-npm run migrate:security
-```
-
-Or use the universal runner (auto-detects bun or npm):
-```bash
-./run.sh install
-./run.sh build
-./run.sh db:push
-./run.sh db:seed
-./run.sh seed:slides
-./run.sh migrate:security
-```
-
----
-
-## Step 5 — Restart the app
-
-In cPanel → **Setup Node.js App** → find your app → click **Restart**.
-
-Visit `https://trailgliders.edu.ng` to confirm the site loads.
-
----
-
-## Step 6 — Change the default admin password
-
-1. Visit `https://trailgliders.edu.ng/admin/login`
-2. Sign in with: `admin@trailgliders.edu.ng` / `TrailGliders2026!`
-3. Go to **Settings → Security tab**
-4. Change the password to a strong one (12+ chars with upper/lower/digit/symbol)
-
----
-
-## Step 7 — Configure SMTP for the contact form
-
-The contact form will silently log submissions until SMTP is configured. To make it actually send email:
-
-1. Sign in to admin → **Secrets Vault**
-2. Click **Add from Template** → **SMTP Credentials**
-3. Add these 5 secrets one by one:
-   - `SMTP_HOST` — e.g. `smtp.gmail.com`, `mail.trailgliders.edu.ng`
-   - `SMTP_PORT` — `587` (TLS) or `465` (SSL)
-   - `SMTP_USER` — your email username
-   - `SMTP_PASSWORD` — your email password (use an app-specific password for Gmail)
-   - `SMTP_FROM` — e.g. `info@trailgliders.edu.ng`
-4. Each secret is encrypted with `SECRETS_MASTER_KEY` before storage
-5. Test the contact form — submissions should now arrive in your inbox
-
-**Common SMTP providers in Nigeria:**
-- **Gmail** (free, ~100 emails/day): `smtp.gmail.com:587`, use an App Password
-- **Zoho Mail** (free custom domain): `smtp.zoho.com:465`
-- **Your cPanel email**: `mail.yourdomain.com:465` — use the email account you created in cPanel
-- **SendGrid** (paid, scalable): `smtp.sendgrid.net:587`, username `apikey`
-
----
-
-## Step 8 — Optional: Configure Paystack for fee payments
-
-1. Sign in to admin → **Secrets Vault**
-2. Click **Add from Template** → **Paystack Payment Keys**
-3. Add:
-   - `PAYSTACK_PUBLIC_KEY` — `pk_test_...` or `pk_live_...`
-   - `PAYSTACK_SECRET_KEY` — `sk_test_...` or `sk_live_...`
-   - `PAYSTACK_WEBHOOK_SECRET` — from Paystack dashboard → Settings → API Keys & Webhooks
-
-Get these from https://dashboard.paystack.com → Settings → API Keys & Webhooks.
-
----
-
-## Step 9 — Set up SSL (HTTPS)
-
-1. cPanel → **SSL/TLS Status** → **Run AutoSSL** for your domain
-2. Or use **Let's Encrypt™ SSL** (cPanel → Security section)
-3. Verify HTTPS works: `https://trailgliders.edu.ng` should load without warnings
-4. The app forces HTTPS via HSTS headers automatically
-
----
-
-## Step 10 — Set up automatic database backups
-
-The database is PostgreSQL (not a file). Use `pg_dump` for backups:
-
-### Manual backup (one-time)
-```bash
-mkdir -p ~/backups
-PGPASSWORD="YOUR_DB_PASSWORD" pg_dump \
-  --host=localhost \
-  --port=5432 \
-  --username=YOUR_DB_USER \
-  --dbname=YOUR_DB_NAME \
-  --no-owner --no-acl --clean --if-exists \
-  --file=~/backups/trailgliders-$(date +%Y%m%d).sql
-```
-
-### Automatic daily backup (cPanel Cron Job)
-1. cPanel → **Cron Jobs**
-2. Add a job that runs daily at 2 AM:
-```
-0 2 * * * PGPASSWORD="YOUR_DB_PASSWORD" pg_dump --host=localhost --port=5432 --username=YOUR_DB_USER --dbname=YOUR_DB_NAME --no-owner --no-acl --clean --if-exists --file=/home/USERNAME/backups/trailgliders-$(date +\%Y\%m\%d).sql && find /home/USERNAME/backups/ -name "trailgliders-*.sql" -mtime +30 -delete
-```
-This keeps the last 30 days of backups automatically.
-
----
-
-## Automated deployment with GitHub Actions (recommended)
-
-The steps above describe a **one-time manual setup**. Once your site is live, you should automate future deploys with GitHub Actions so every push to `main` ships to production without you touching cPanel.
-
-We provide a complete CI/CD pipeline in `.github/workflows/deploy.yml` that:
-
-1. Builds the Next.js standalone bundle on GitHub-hosted runner
-2. `rsync`s the artifacts to your cPanel account over SSH
-3. Runs a post-deploy script that installs deps, pushes the Prisma schema, and restarts the Node.js app
-4. Creates automatic rollback backups before each deploy
-
-**Setup time**: ~15 minutes (generate SSH key, add 7 GitHub Secrets, push to main).
-
-👉 **Full setup instructions**: see [`GITHUB-ACTIONS-DEPLOY.md`](./GITHUB-ACTIONS-DEPLOY.md)
-
-The pipeline is safe to enable alongside the manual setup above — the first automated deploy just refreshes the code; it preserves your database, env vars, and uploads.
-
-### Quick start (if you've already done the manual setup above)
-
-1. **Generate SSH key**:
-   ```bash
-   ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/trailgliders-deploy
-   ```
-2. **Add public key to cPanel**: cPanel → SSH Access → Manage SSH Keys → Import → Authorize
-3. **Add 7 GitHub Secrets** (Settings → Secrets and variables → Actions):
-   - `CPANEL_HOST`, `CPANEL_USER`, `CPANEL_PORT`, `CPANEL_PATH`, `CPANEL_APP_NAME`
-   - `CPANEL_SSH_KEY` (entire private key file contents)
-   - `CPANEL_KNOWN_HOSTS` (output of `ssh-keyscan -H -p PORT HOST`)
-4. **Push to main** — the first deploy runs automatically
-
-### Manual local deploy (no GitHub needed)
-
-If GitHub Actions is broken or you need to deploy urgently:
+### Option B: Manual local deploy
 
 ```bash
-# Create .env.deploy (NOT committed — already in .gitignore)
+# Create .env.deploy (NOT committed)
 cat > .env.deploy <<EOF
-CPANEL_HOST=server123.hosting.com
-CPANEL_USER=myuserna
+CPANEL_HOST=131.153.148.82
+CPANEL_USER=trailgli
 CPANEL_PORT=22
-CPANEL_PATH=/home/myuserna/trailgliders
-CPANEL_APP_NAME=trailgliders
+CPANEL_PATH=/home2/trailgli/prod.trailglidersacademy.com.ng
+CPANEL_APP_NAME=prod.trailglidersacademy.com.ng
+SSH_KEY=~/.ssh/trailgliders-deploy
+NODE_BIN=/opt/alt/alt-nodejs22/root/usr/bin
 EOF
 
 ./scripts/cpanel-deploy.sh
 ```
 
-This does the same thing as the GitHub Actions workflow, but from your laptop.
+---
+
+## Step 4 -- Seed the database (first deploy only)
+
+After the first deploy, SSH into the server and seed the database. Since cPanel env vars are only injected by Passenger (not SSH), you must export `DATABASE_URL` manually:
+
+```bash
+ssh -i ~/.ssh/trailgliders-deploy -p 22 trailgli@131.153.148.82
+
+# Set up PATH and DATABASE_URL
+export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH
+cd ~/prod.trailglidersacademy.com.ng
+export DATABASE_URL='postgresql://USER:PASS@127.0.0.200:5432/DB?schema=public'
+
+# Seed all data
+node scripts/dist/seed.js
+node scripts/dist/seed-slides.js
+node scripts/dist/migrate-security.js
+
+# Restart the app
+touch tmp/restart.txt
+```
+
+Or run the all-in-one migration script:
+```bash
+node scripts/dist/migrate.js
+```
+
+---
+
+## Running scripts on cPanel
+
+`tsx` is NOT available on cPanel. All TypeScript scripts are pre-compiled to `scripts/dist/` during the build and included in the deploy tarball. Use `node` to run them:
+
+| Task | Local dev command | cPanel command |
+|---|---|---|
+| Seed database | `npm run db:seed` | `node scripts/dist/seed.js` |
+| Seed hero slides | `npm run seed:slides` | `node scripts/dist/seed-slides.js` |
+| Security migration | `npm run migrate:security` | `node scripts/dist/migrate-security.js` |
+| Full migration | `npm run migrate` | `node scripts/dist/migrate.js` |
+| Backfill slugs | `npm run backfill:slugs` | `node scripts/dist/backfill-slugs.js` |
+| Push schema | `npm run db:push` | `npx prisma db push --skip-generate` |
+| Re-seed (wipe + recreate) | `npm run db:seed -- --force` | `node scripts/dist/seed.js --force` |
+
+**Always export `DATABASE_URL` first** when running scripts via SSH:
+```bash
+export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH
+export DATABASE_URL='postgresql://...'
+```
+
+---
+
+## Viewing logs
+
+### App runtime errors (most useful)
+
+The Passenger output file is at `~/prod` (named after the domain):
+```bash
+cat ~/prod
+tail -50 ~/prod
+```
+
+This shows Next.js startup messages and runtime errors like `TypeError`, Prisma errors, etc.
+
+### Deploy history
+```bash
+cat ~/prod.trailglidersacademy.com.ng/logs/deploy-history.log
+```
+
+### Apache/NGINX access logs
+```bash
+ls ~/logs/
+# Compressed logs: trailglidersacademy.com.ng-*.gz
+```
+
+### Check from your local machine (one-liner)
+```bash
+ssh -i ~/.ssh/trailgliders-deploy -p 22 trailgli@131.153.148.82 "tail -50 ~/prod"
+```
+
+---
+
+## Step 5 -- Change the default admin password
+
+1. Visit `https://prod.trailglidersacademy.com.ng/admin/login`
+2. Sign in with: `admin@trailgliders.edu.ng` / `TrailGliders2026!`
+3. Go to **Settings > Security tab**
+4. Change the password to a strong one (12+ chars with upper/lower/digit/symbol)
+
+---
+
+## Step 6 -- Configure SMTP for the contact form
+
+1. Sign in to admin > **Secrets Vault**
+2. Click **Add from Template** > **SMTP Credentials**
+3. Add: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+4. Each secret is encrypted with `SECRETS_MASTER_KEY` before storage
+
+---
+
+## Step 7 -- Set up SSL (HTTPS)
+
+1. cPanel > **SSL/TLS Status** > **Run AutoSSL** for your domain
+2. Verify: `https://prod.trailglidersacademy.com.ng` loads without warnings
+
+---
+
+## Step 8 -- Set up database backups
+
+```bash
+# Manual backup
+PGPASSWORD="YOUR_DB_PASSWORD" pg_dump \
+  --host=127.0.0.200 --port=5432 \
+  --username=YOUR_DB_USER --dbname=YOUR_DB_NAME \
+  --no-owner --no-acl --clean --if-exists \
+  --file=~/backups/trailgliders-$(date +%Y%m%d).sql
+```
+
+### Automatic daily backup (cPanel Cron Job)
+1. cPanel > **Cron Jobs**
+2. Add a job that runs daily at 2 AM:
+```
+0 2 * * * PGPASSWORD="YOUR_DB_PASSWORD" pg_dump --host=127.0.0.200 --port=5432 --username=YOUR_DB_USER --dbname=YOUR_DB_NAME --no-owner --no-acl --clean --if-exists --file=/home2/trailgli/backups/trailgliders-$(date +\%Y\%m\%d).sql && find /home2/trailgli/backups/ -name "trailgliders-*.sql" -mtime +30 -delete
+```
+
+---
+
+## Restarting the app
+
+```bash
+# Via SSH
+touch ~/prod.trailglidersacademy.com.ng/tmp/restart.txt
+
+# Via cPanel UI
+# Node.js Selector > your app > Restart
+```
+
+---
+
+## Rollback
+
+Each deploy creates a backup in `~/prod.trailglidersacademy.com.ng/backups/`:
+```bash
+cd ~/prod.trailglidersacademy.com.ng
+ls backups/rollback-*.tgz
+
+# Restore a specific backup
+tar -xzf backups/rollback-20260620-114100.tgz
+touch tmp/restart.txt
+```
 
 ---
 
 ## Troubleshooting
 
-### App shows "503 Service Unavailable"
-- Check cPanel → Setup Node.js App → click **Run NPM Install** if dependencies are missing
-- Check the app's log file: cPanel → Setup Node.js App → click **View Logs**
+### App shows "Application error: a server-side exception has occurred"
+1. Check the Passenger output: `cat ~/prod`
+2. Common causes:
+   - **Empty database** -- run `node scripts/dist/seed.js`
+   - **Missing env vars** -- check Node.js Selector env vars in cPanel
+   - **Schema out of sync** -- run `npx prisma db push --skip-generate` (with `DATABASE_URL` exported)
 
-### "Cannot find module 'next'" error
-- Run `npm install` or `bun install` in the project folder via Terminal
-- Then restart the app in cPanel
+### "Cannot read properties of undefined (reading 'map')"
+- Database tables exist but are empty. Run: `node scripts/dist/seed.js`
 
-### Database errors
-- Verify `DATABASE_URL` points to a writable path inside your home directory
-- Run `npm run db:push` (or `bun run db:push`) to recreate the schema
-- Run `npm run db:seed` (or `bun run db:seed`) to repopulate default content
+### "@prisma/client did not initialize yet"
+- Prisma client was not bundled in the deploy tarball. Redeploy from GitHub Actions.
 
-### Admin login doesn't work
-- Run `npm run db:seed` (or `bun run db:seed`) again to recreate the admin user
-- Default credentials: `admin@trailgliders.edu.ng` / `TrailGliders2026!`
+### "tsx: command not found"
+- Use compiled scripts instead: `node scripts/dist/seed.js` (not `npm run db:seed`)
 
-### SMTP not sending
-- Check the secrets are set in **Secrets Vault** (not just `.env`)
-- Check cPanel → **Email → Track Delivery** for delivery attempts
-- Contact form submissions are always audit-logged (visible on admin Dashboard) even if SMTP fails
+### Database access denied
+- Check that the PostgreSQL user has permissions on the database
+- In cPanel > PostgreSQL Databases > verify the user is assigned to the database
 
-### Account lockout
-- After 5 failed admin logins, the account is locked for 15 minutes
-- To unlock immediately: open cPanel Terminal →
+### Account lockout (too many failed logins)
+- Wait 15 minutes, or SSH in and run:
   ```bash
-  cd ~/trailgliders && npx prisma studio
+  export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH
+  export DATABASE_URL='postgresql://...'
+  cd ~/prod.trailglidersacademy.com.ng
+  node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.user.updateMany({data:{failedAttempts:0,lockedUntil:null}}).then(()=>{console.log('Unlocked');p.\$disconnect()})"
   ```
-  Open the User table, set `failedAttempts` to 0 and `lockedUntil` to NULL
 
 ---
 
-## Security checklist for production
+## Security checklist
 
-- [ ] `.env` is NOT in git (check `.gitignore`)
-- [ ] `NEXTAUTH_SECRET` and `SECRETS_MASTER_KEY` are set via cPanel env vars (not in any file)
+- [ ] Environment variables set via cPanel UI (not `.env` files)
+- [ ] `NEXTAUTH_SECRET` and `SECRETS_MASTER_KEY` are strong random values
 - [ ] Default admin password has been changed
 - [ ] SSL/HTTPS is active
 - [ ] Daily DB backups are configured via cPanel Cron Job
 - [ ] cPanel account has 2FA enabled
-- [ ] SMTP password is stored only in the Secrets Vault (not `.env`)
-- [ ] Payment gateway keys are stored only in the Secrets Vault
-- [ ] Admin URL is not publicly linked (only share `https://trailgliders.edu.ng/admin/login` with trusted staff)
+- [ ] SMTP password is stored only in the Secrets Vault
+- [ ] GitHub Secrets contain no expired or leaked credentials
+- [ ] SSH deploy key is restricted to the deploy user only
 
 ---
 
-## Updating the site after deployment
+## Build pipeline
 
-To pull new code changes:
+The build process (both local and CI) runs these steps automatically:
 
-```bash
-cd ~/trailgliders
-git pull origin main
-bun install   # or: npm install (if package.json changed)
-bun run build   # or: npm run build
-```
+1. `prisma generate` (via `prebuild` script in package.json)
+2. `next build` (creates standalone bundle)
+3. Copy `.next/static` and `public/` into standalone
+4. `build:scripts` -- compiles TypeScript scripts to `scripts/dist/` via esbuild
 
-Then restart the app in cPanel → Setup Node.js App → Restart.
+The deploy tarball bundles:
+- `.next/standalone/` (the app)
+- `.next/static/` (CSS/JS chunks)
+- `public/` (images, favicon, etc.)
+- `prisma/` (schema file)
+- `scripts/` (source + compiled `dist/`)
+- `node_modules/@prisma`, `node_modules/.prisma`, `node_modules/prisma` (Prisma runtime + engine)
+- `node_modules/bcryptjs` (needed by seed script)
 
-Database migrations (if schema changed): `bun run db:push` (or `npm run db:push`)
-
-Or use the universal runner:
-```bash
-./run.sh install
-./run.sh build
-./run.sh db:push
-```
+This means cPanel does NOT need `npm install` -- everything the app needs is in the tarball.
 
 ---
 
-## File locations on cPanel
-
-| What | Path |
-|---|---|
-| Project root | `~/trailgliders/` |
-| Database | PostgreSQL (external or cPanel-managed — NOT a file) |
-| Backups | `~/backups/` (create this folder) |
-| App logs | cPanel → Setup Node.js App → View Logs |
-| Audit logs | In the database → `AuditLog` table (visible on admin dashboard) |
-
----
-
-Need help? Email the developer who set this up. For security issues, change the `SECRETS_MASTER_KEY` immediately and rotate all stored secrets.
+Need help? Check the logs first (`cat ~/prod`), then check the deploy history, then reach out to the developer.

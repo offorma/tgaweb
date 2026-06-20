@@ -1,4 +1,4 @@
-GitHub Actions → cPanel Deployment Guide
+# GitHub Actions -> cPanel Deployment Guide
 
 This guide explains how to automatically deploy Trail Gliders Academy to cPanel using GitHub Actions, and how to test feature branches without touching production.
 
@@ -12,10 +12,10 @@ The project includes **4 GitHub workflows** that cover production deploys, PR ch
 |---|---|---|---|
 | **Deploy to cPanel** | `deploy.yml` | Push to `main`, tags `v*`, manual | Production deploy |
 | **PR Check** | `pr-check.yml` | PRs, push to non-main branches | Lint + build verification |
-| **E2E Tests** | `e2e.yml` | PRs, push to feature branches | 103 Playwright tests + fresh Postgres |
-| **Deploy to Staging** | `staging.yml` | PRs (opt-in via `STAGING_ENABLED`) | Feature branch → staging subdomain |
+| **E2E Tests** | `e2e.yml` | PRs, push to feature branches | Playwright tests + fresh Postgres |
+| **Deploy to Staging** | `staging.yml` | PRs (opt-in via `STAGING_ENABLED`) | Feature branch -> staging subdomain |
 
-**Production** is only touched by `deploy.yml` on push to `main`. PRs and feature branches run tests in CI and optionally deploy to staging — never production.
+**Production** is only touched by `deploy.yml` on push to `main`. PRs and feature branches run tests in CI and optionally deploy to staging -- never production.
 
 ---
 
@@ -23,73 +23,96 @@ The project includes **4 GitHub workflows** that cover production deploys, PR ch
 
 ```
   GitHub repo
-     │
-     ├── push to main ──→ deploy.yml
-     │                       │
-     │                       ▼
-     │                   ┌─────────────────────────┐
-     │                   │  GitHub Actions runner  │
-     │                   │                         │
-     │                   │  1. npm ci              │
-     │                   │  2. prisma generate     │
-     │                   │  3. npm run build       │
-     │                   │  4. stage artifacts     │
-     │                   │  5. rsync → cPanel      │
-     │                   │  6. ssh: post-deploy.sh │
-     │                   └─────────────────────────┘
-     │                       │
-     │                       │ SSH (port 22 or 21098)
-     │                       ▼
-     │                   ┌─────────────────────────┐
-     │                   │  cPanel server          │
-     │                   │                         │
-     │                   │  ~/trailgliders/        │
-     │                   │    ├── server.js        │  ← new
-     │                   │    ├── .next/static/    │  ← new
-     │                   │    ├── public/          │  ← new
-     │                   │    ├── prisma/          │  ← new
-     │                   │    ├── node_modules/    │  ← kept + updated
-     │                   │    ├── .env (cPanel UI) │  ← PRESERVED
-     │                   │    ├── backups/         │  ← PRESERVED
-     │                   │    └── logs/            │  ← PRESERVED
-     │                   │                         │
-     │                   │  → post-deploy.sh:      │
-     │                   │    prisma db push       │
-     │                   │    touch tmp/restart.txt│
-     │                   └─────────────────────────┘
-     │                       │
-     │                       ▼
-     │                   https://yourdomain.com
-     │                       │
-     │                       │  PostgreSQL (external or cPanel)
-     │                       │  ← PRESERVED (not a file)
-     │
-     ├── PR / feature branch ──→ e2e.yml
-     │                              │
-     │                              ▼
-     │                          ┌─────────────────────────┐
-     │                          │  GitHub Actions runner  │
-     │                          │                         │
-     │                          │  1. Build feature branch│
-     │                          │  2. Start Postgres 16   │
-     │                          │     service container   │
-     │                          │  3. db push + seed      │
-     │                          │  4. Start Next.js       │
-     │                          │  5. Run Playwright      │
-     │                          │     (103 tests)         │
-     │                          │  6. Upload reports      │
-     │                          └─────────────────────────┘
-     │                              │
-     │                              ▼
-     │                          PR check: ✅ / ❌
-     │                          + test report comment
-     │
-     └── PR (if STAGING_ENABLED=true) ──→ staging.yml
-                                          │
-                                          ▼
+     |
+     +-- push to main --> deploy.yml
+     |                       |
+     |                       v
+     |                   +---------------------------+
+     |                   |  GitHub Actions runner     |
+     |                   |                            |
+     |                   |  1. npm ci                 |
+     |                   |  2. prisma generate        |
+     |                   |  3. npm run build          |
+     |                   |     (includes build:scripts|
+     |                   |      -> scripts/dist/*.js) |
+     |                   |  4. Bundle Prisma +        |
+     |                   |     bcryptjs into tarball   |
+     |                   |  5. SCP tarball -> cPanel   |
+     |                   |  6. prisma db push         |
+     |                   |     (from runner, NOT cPanel)|
+     |                   |  7. ssh: post-deploy.sh    |
+     |                   +---------------------------+
+     |                       |
+     |                       | SSH
+     |                       v
+     |                   +---------------------------+
+     |                   |  cPanel server (CloudLinux)|
+     |                   |                            |
+     |                   |  ~/prod.trailgliders       |
+     |                   |  academy.com.ng/           |
+     |                   |    +-- server.js           |
+     |                   |    +-- .next/static/       |
+     |                   |    +-- public/             |
+     |                   |    +-- prisma/             |
+     |                   |    +-- scripts/dist/       |
+     |                   |    +-- node_modules/       |
+     |                   |    |   @prisma, .prisma,   |
+     |                   |    |   prisma, bcryptjs    |
+     |                   |    +-- backups/  PRESERVED |
+     |                   |    +-- logs/     PRESERVED |
+     |                   |                            |
+     |                   |  Env vars: cPanel Node.js  |
+     |                   |  Selector UI (NOT .env)    |
+     |                   |                            |
+     |                   |  -> post-deploy.sh:        |
+     |                   |    verify bundled deps     |
+     |                   |    touch tmp/restart.txt   |
+     |                   +---------------------------+
+     |                       |
+     |                       v
+     |                   https://prod.trailgliders
+     |                   academy.com.ng
+     |
+     +-- PR / feature branch --> e2e.yml
+     |                              |
+     |                              v
+     |                          Playwright tests
+     |                          (isolated Postgres)
+     |
+     +-- PR (if STAGING_ENABLED=true) --> staging.yml
+                                          |
+                                          v
                                       Deploy to staging subdomain
                                       + comment PR with URL
 ```
+
+---
+
+## Key design decisions
+
+### Environment variables via cPanel UI (not .env files)
+
+Environment variables (`DATABASE_URL`, `NEXTAUTH_SECRET`, etc.) are configured in **cPanel > Node.js Selector > Environment variables**. This is more secure than `.env` files because:
+- Vars are injected by Passenger into the running Node.js process only
+- No `.env` file to accidentally commit or expose
+- Managed through cPanel's UI
+
+**Trade-off**: cPanel UI env vars are NOT available in SSH sessions. This means:
+- The running app has full access to all env vars (via `process.env`)
+- SSH scripts (like `prisma db push`) cannot access them automatically
+- The deploy workflow runs `prisma db push` from the GitHub Actions runner (not cPanel), using `PROD_DATABASE_URL` from GitHub Secrets
+- When running scripts manually via SSH, you must `export DATABASE_URL=...` yourself
+
+### Prisma runs in CI, not on cPanel
+
+Both `prisma generate` and `prisma db push` run on the GitHub Actions runner:
+- `prisma generate` produces the client + engine binaries, which are bundled in the tarball
+- `prisma db push` syncs the schema, connecting to the database from the runner
+- cPanel's jailshell blocks outbound internet, which would cause Prisma CLI to crash when trying to download engine binaries
+
+### TypeScript scripts are pre-compiled
+
+`tsx` is not available on cPanel. All TypeScript scripts in `scripts/` are compiled to `scripts/dist/*.js` via esbuild during `npm run build`. On cPanel, use `node scripts/dist/seed.js` instead of `npm run db:seed`.
 
 ---
 
@@ -101,14 +124,9 @@ The project includes **4 GitHub workflows** that cover production deploys, PR ch
 | `.github/workflows/pr-check.yml` | Lightweight CI on PRs (lint + build) |
 | `.github/workflows/e2e.yml` | E2E test pipeline (Playwright + Postgres) |
 | `.github/workflows/staging.yml` | Staging deploy pipeline (feature branches) |
-| `scripts/cpanel-post-deploy.sh` | Runs ON cPanel after sync — installs deps, prisma db push, restart |
+| `scripts/cpanel-post-deploy.sh` | Runs ON cPanel after extraction -- verifies deps, restarts app |
 | `scripts/cpanel-deploy.sh` | Manual local-to-cPanel deploy (no GitHub needed) |
-| `playwright.config.ts` | Playwright configuration |
-| `e2e/smoke.spec.ts` | Smoke tests (homepage, listing pages, 404s) |
-| `e2e/admin.spec.ts` | Admin tests (login, CRUD, security) |
-| `e2e/i18n.spec.ts` | i18n tests (locale routing, hreflang, fallback) |
-| `docs/STAGING-SETUP.md` | Staging subdomain setup guide |
-| `GITHUB-ACTIONS-DEPLOY.md` | This guide |
+| `scripts/dist/*.js` | Pre-compiled scripts for running on cPanel with plain `node` |
 
 ---
 
@@ -117,323 +135,180 @@ The project includes **4 GitHub workflows** that cover production deploys, PR ch
 ### Prerequisites
 
 - A GitHub repo with your project pushed to it
-- cPanel hosting with **SSH access enabled**
-- A **Node.js app already set up** in cPanel (follow [`DEPLOYMENT.md`](./DEPLOYMENT.md) Steps 1–6 first)
-- **PostgreSQL database** configured and seeded (the app uses Postgres, not SQLite)
-- The app reachable at your domain (e.g. `https://trailgliders.com.ng/en/`)
+- cPanel hosting with **CloudLinux Node.js Selector** and SSH access
+- A **Node.js app already set up** in cPanel (follow [`DEPLOYMENT.md`](./DEPLOYMENT.md))
+- **PostgreSQL database** configured (the app uses Postgres)
+- Environment variables set in cPanel Node.js Selector UI
 
-> **First-time setup tip**: Do the manual cPanel setup in `DEPLOYMENT.md` once before turning on GitHub Actions. That way the database, env vars, and Node app config are already in place — the pipeline just refreshes the code.
-
-### Step 1 — Generate an SSH key for GitHub Actions
+### Step 1 -- Generate an SSH key for GitHub Actions
 
 ```bash
 ssh-keygen -t ed25519 -C "github-actions-deploy@trailgliders" -f ~/.ssh/trailgliders-deploy
 ```
 
-- Press Enter when asked for a passphrase (the key must work non-interactively from CI)
-- This creates:
-   - `~/.ssh/trailgliders-deploy` — **PRIVATE key** (goes to GitHub)
-   - `~/.ssh/trailgliders-deploy.pub` — **PUBLIC key** (goes to cPanel)
+- Press Enter for no passphrase (the key must work non-interactively from CI)
 
-### Step 2 — Add the public key to cPanel
+### Step 2 -- Add the public key to cPanel
 
-1. Log in to cPanel
-2. Go to **SSH Access → Manage SSH Keys → ImportKey**
-3. Pick a name (e.g. `trailgliders-deploy`)
-4. Paste the contents of `~/.ssh/trailgliders-deploy.pub`
-5. Click **Import** → **Manage** → **Authorize**
+1. cPanel > **SSH Access > Manage SSH Keys > Import Key**
+2. Paste contents of `~/.ssh/trailgliders-deploy.pub`
+3. Click **Import** > **Manage** > **Authorize**
 
-Test the connection:
+Test:
 ```bash
-ssh -i ~/.ssh/trailgliders-deploy -p 22 youruser@yourserver.com "whoami; pwd"
+ssh -i ~/.ssh/trailgliders-deploy -p 22 trailgli@131.153.148.82 "whoami"
 ```
 
-> **Namecheap / Bluehost users**: SSH port is often `21098` instead of `22`. Check your hosting welcome email.
+### Step 3 -- Add GitHub Secrets
 
-### Step 3 — Capture the cPanel host fingerprint
+Go to repo > **Settings > Secrets and variables > Actions > New repository secret**.
 
-```bash
-ssh-keyscan -H -p 22 yourserver.com > known_hosts.txt
-cat known_hosts.txt
-```
+#### SSH connection secrets
 
-Copy this output — you'll paste it as a GitHub Secret.
-
-### Step 4 — Find your cPanel app settings
-
-| Setting | Where to find it | Example |
-|---|---|---|
-| `CPANEL_HOST` | cPanel URL hostname | `server123.hosting.com` |
-| `CPANEL_USER` | Top-right of cPanel dashboard | `myuserna` |
-| `CPANEL_PORT` | Usually `22`, sometimes `21098` | `22` |
-| `CPANEL_PATH` | `pwd` in cPanel Terminal after `cd ~/trailgliders` | `/home/myuserna/trailgliders` |
-| `CPANEL_APP_NAME` | cPanel → Setup Node.js App → Application Name | `trailgliders` |
-
-### Step 5 — Add GitHub Secrets
-
-Go to your repo → **Settings → Secrets and variables → Actions → New repository secret**.
-
-You need **two groups** of secrets: SSH connection secrets (for rsync/SSH access) and **app environment secrets** (for the `.env` file that gets written to the server).
-
-#### SSH connection secrets (7)
-
-| Secret name | Value |
+| Secret | Value |
 |---|---|
-| `CPANEL_HOST` | Your cPanel server hostname |
-| `CPANEL_USER` | Your cPanel username |
-| `CPANEL_PORT` | SSH port (`22` or `21098`) |
-| `CPANEL_PATH` | Absolute path on cPanel (`/home/USER/trailgliders`) |
-| `CPANEL_APP_NAME` | Node.js app name from cPanel |
-| `CPANEL_SSH_KEY` | Entire contents of the PRIVATE key file |
-| `CPANEL_KNOWN_HOSTS` | Output from `ssh-keyscan -H -p PORT HOST` |
+| `CPANEL_HOST` | `131.153.148.82` |
+| `CPANEL_USER` | `trailgli` |
+| `CPANEL_PORT` | `22` |
+| `CPANEL_PATH` | `/home2/trailgli/prod.trailglidersacademy.com.ng` |
+| `CPANEL_APP_NAME` | `prod.trailglidersacademy.com.ng` |
+| `CPANEL_SSH_KEY` | (entire private key file contents) |
 
-#### App environment secrets (4) — ⚠️ CRITICAL
+#### Database secret (for schema push from CI)
 
-These secrets are written to a `.env` file on the cPanel server during each deploy. The post-deploy script sources this file before running `prisma db push`, and the Node.js app reads it at runtime.
+| Secret | Value |
+|---|---|
+| `PROD_DATABASE_URL` | `postgresql://USER:PASS@127.0.0.200:5432/DB?schema=public` |
 
-**Without these, `prisma db push` fails and the app won't start.**
+**Note**: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `SECRETS_MASTER_KEY`, and `NODE_ENV` are set via the cPanel Node.js Selector UI -- they do NOT need to be in GitHub Secrets.
 
-| Secret name | Value | Example |
-|---|---|---|
-| `PROD_DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db?schema=public` |
-| `PROD_NEXTAUTH_SECRET` | Random 32+ char string | `openssl rand -base64 32` |
-| `PROD_NEXTAUTH_URL` | Your production URL | `https://trailgliders.com.ng` |
-| `PROD_SECRETS_MASTER_KEY` | Random 32+ char string | `openssl rand -base64 48` |
-
-> **Why GitHub Secrets instead of cPanel UI env vars?**
-> cPanel's "Setup Node.js App → Environment variables" only injects vars into the Passenger-managed Node process — NOT into SSH sessions. The post-deploy script runs via SSH and needs `DATABASE_URL` for `prisma db push`. By writing a `.env` file from GitHub Secrets, both the SSH session AND the running app have access to the same env vars.
-
-#### Total: 11 GitHub Secrets (7 SSH + 4 app env)
-
-### Step 6 — Push to main
+### Step 4 -- Push to main
 
 ```bash
-git add .github/workflows/ scripts/cpanel-post-deploy.sh scripts/cpanel-deploy.sh
-git commit -m "ci: add GitHub Actions deploy pipeline"
 git push origin main
 ```
 
-The push triggers the first deploy. Watch it live:
-1. Go to `https://github.com/YOUR-ORG/trail-gliders-academy/actions`
-2. Click the top run ("Deploy to cPanel")
-3. Build job (~3–5 min) → Deploy job (~1–2 min) → green checkmarks
+Watch live: **Actions > Deploy to cPanel**
 
-### Step 7 — Verify
+### Step 5 -- Seed the database (first deploy only)
 
-1. Visit `https://yourdomain.com/en/` — site loads
-2. Visit `https://yourdomain.com/admin/login` — login works
-3. SSH in and check the deploy log:
-   ```bash
-   ssh -p 22 youruser@yourserver.com
-   tail -20 ~/trailgliders/logs/deploy-history.log
-   ```
+After the first deploy, SSH in and seed:
 
-You should see entries like:
-```
-2026-06-18T13:05:12Z | commit=abc1234 | version=v1.2.3 | user=github-actions | host=server123.hosting.com
+```bash
+ssh -i ~/.ssh/trailgliders-deploy -p 22 trailgli@131.153.148.82
+
+export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH
+cd ~/prod.trailglidersacademy.com.ng
+export DATABASE_URL='postgresql://...'
+
+node scripts/dist/seed.js
+node scripts/dist/seed-slides.js
+node scripts/dist/migrate-security.js
 ```
 
 ---
 
 ## Part 2: E2E test setup (`e2e.yml`)
 
-**No setup required** — E2E tests run automatically on every PR and feature branch push.
-
-The workflow:
-1. Builds your feature branch
-2. Starts a fresh PostgreSQL 16 service container (isolated, thrown away after the run)
-3. Pushes the Prisma schema + seeds the database
-4. Starts the Next.js server inside the runner
-5. Runs 103 Playwright tests across 3 files:
-   - **Smoke tests** — homepage × 5 locales, all listing pages, detail pages, 404s, API health
-   - **Admin tests** — login, dashboard, CRUD (create news → verify on public site → delete), auth security
-   - **i18n tests** — locale routing, language switcher, hreflang tags, content fallback
-6. Uploads artifacts: build payload, HTML report, JUnit XML, server logs
-7. Publishes test results to the PR checks UI + comments summary on the PR
+**No setup required** -- runs automatically on every PR.
 
 ### Running E2E tests locally
 
 ```bash
-# One-time: install Playwright browsers
 npm run e2e:install
-
-# Start a Postgres instance and set DATABASE_URL
-# (e.g. docker run -e POSTGRES_PASSWORD=tga -p 5432:5432 postgres:16)
-
-# Push schema + seed
-npm run db:push
-npm run db:seed --force
-npm run seed:slides
-npm run migrate:security
-npm run backfill:slugs
-
-# Build + start server
 npm run build
-(cd .next/standalone && DATABASE_URL=... PORT=3000 node server.js &)
-
-# Run tests
 npm run e2e
 
-# Or open interactive UI
+# Interactive UI
 npm run e2e:ui
-
-# View HTML report
-npm run e2e:report
 ```
 
 ---
 
 ## Part 3: Staging deploy setup (`staging.yml`)
 
-Staging deploys are **opt-in**. They require a separate staging subdomain + database on your cPanel, plus additional GitHub Secrets.
+Staging deploys are **opt-in**.
 
-👉 **Full setup guide**: see [`docs/STAGING-SETUP.md`](./docs/STAGING-SETUP.md)
+### Setup
 
-### Quick summary
+1. Create staging subdomain in cPanel
+2. Set up a Node.js app in cPanel pointing to `~/staging.trailglidersacademy.com.ng`
+3. Create a **separate PostgreSQL database** for staging
+4. Set environment variables in cPanel Node.js Selector for the staging app
+5. Add GitHub Secrets:
 
-1. Create a staging subdomain in cPanel (e.g. `staging.trailgliders.com.ng`)
-2. Set up a second Node.js app pointing to `~/trailgliders-staging`
-3. Create a **separate PostgreSQL database** for staging (never reuse production!)
-4. Add staging GitHub Secrets: `STAGING_CPANEL_HOST`, `STAGING_CPANEL_USER`, `STAGING_CPANEL_PORT`, `STAGING_CPANEL_PATH`, `STAGING_CPANEL_APP_NAME`, `STAGING_CPANEL_SSH_KEY`, `STAGING_CPANEL_KNOWN_HOSTS`, `STAGING_DATABASE_URL`, `STAGING_NEXTAUTH_URL`, `STAGING_NEXTAUTH_SECRET`, `STAGING_SECRETS_MASTER_KEY`
-5. Add a GitHub **Variable** (not secret): `STAGING_ENABLED = true`
-6. Push a feature branch → staging auto-deploys + comments on the PR with the URL
+| Secret | Value |
+|---|---|
+| `STAGING_CPANEL_PATH` | `/home2/trailgli/staging.trailglidersacademy.com.ng` |
+| `STAGING_CPANEL_APP_NAME` | `staging.trailglidersacademy.com.ng` |
+| `STAGING_DATABASE_URL` | Staging PostgreSQL connection string |
 
-### Disabling staging
-
-Set `STAGING_ENABLED = false` (or delete the variable). The workflow will still build but skip the deploy step. E2E tests still run.
+6. Add a GitHub **Variable** (not secret): `STAGING_ENABLED = true`
+7. Staging secrets fall back to production secrets if not set (same server)
 
 ---
 
-## How the production deploy pipeline works (deep dive)
+## Running scripts on cPanel
 
-### Trigger conditions
+`tsx` is NOT available on cPanel. Use pre-compiled scripts:
 
-`deploy.yml` runs when:
-- You push to `main` or `master` (excluding `.md` files and `docs/`)
-- You push a tag like `v1.2.3` (creates a tagged release)
-- You manually trigger it: **Actions → Deploy to cPanel → Run workflow**
+| Task | cPanel command |
+|---|---|
+| Seed database | `node scripts/dist/seed.js` |
+| Seed hero slides | `node scripts/dist/seed-slides.js` |
+| Security migration | `node scripts/dist/migrate-security.js` |
+| Full migration | `node scripts/dist/migrate.js` |
+| Backfill slugs | `node scripts/dist/backfill-slugs.js` |
+| Re-seed (wipe) | `node scripts/dist/seed.js --force` |
+| Push schema | `npx prisma db push --skip-generate` |
 
-It does NOT run on:
-- Pull requests (those run `pr-check.yml` + `e2e.yml`)
-- Feature branches (those run `e2e.yml` + optionally `staging.yml`)
-
-### Concurrency
-
-If you push 5 commits in quick succession, only the **latest** deploys. Earlier in-flight deploys queue up and run sequentially (no cancellation mid-deploy):
-
-```yaml
-concurrency:
-  group: deploy-cpanel-${{ github.ref }}
-  cancel-in-progress: false
+**Always set PATH and DATABASE_URL first:**
+```bash
+export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH
+export DATABASE_URL='postgresql://...'
 ```
 
-### Build job
+---
 
-1. Checks out the repo (with full history for `git describe`)
-2. Sets up Node 22
-3. Runs `npm ci`
-4. Runs `npx prisma generate` — generates the Prisma Client (with engine binaries for multiple platforms via `binaryTargets` in schema.prisma)
-5. **Runs `npx prisma db push` against the production DB** — pushes schema changes from the runner (avoids running Prisma CLI on cPanel, which crashes when jailshell blocks the engine binary download). Uses `PROD_DATABASE_URL` secret.
-6. Runs `npm run build` — produces `.next/standalone/server.js`
-7. Stages everything into `deploy-payload/app/`:
-   - Standalone server + bundled node_modules
-   - `.next/static` (CSS/JS chunks)
-   - `public/` (images, fonts)
-   - `prisma/` (schema)
-   - `scripts/` (seed scripts)
-   - `package.json` + lockfile
-   - **`node_modules/@prisma` + `node_modules/.prisma` + `node_modules/prisma`** — bundled so the runtime client + engine binaries are available on cPanel without needing `prisma` CLI there
-8. Uploads the payload as a GitHub Actions artifact
+## Viewing logs
 
-> **Why prisma db push runs in CI, not on cPanel**: Shared cPanel hosts restrict outbound internet from SSH sessions. When the post-deploy script ran `prisma db push` on cPanel, Prisma tried to download its native engine binary, the download was blocked, and Prisma crashed. Running `prisma db push` from the GitHub runner (which has full internet) sidesteps this entirely. The runner connects to your Postgres database directly using `PROD_DATABASE_URL`.
+| Log | Location |
+|---|---|
+| App runtime errors | `cat ~/prod` (Passenger output) |
+| Deploy history | `cat ~/prod.trailglidersacademy.com.ng/logs/deploy-history.log` |
+| Apache/NGINX access | `~/logs/` (compressed) |
 
-### Deploy job
-
-1. Downloads the build artifact
-2. Configures SSH with the private key from secrets
-3. Tests SSH connection
-4. Creates `backups/` and `logs/` directories if missing
-5. **Backs up** the current deployment to `backups/rollback-YYYYMMDD-HHMMSS.tgz` (keeps last 5)
-6. **rsync** with `--delete` and excludes for:
-   - `.env*` — preserves env vars (set via cPanel UI)
-   - `backups/` — preserves rollback history
-   - `logs/` — preserves deploy logs
-   - `node_modules/.cache/`, `.next/cache/` — preserves build caches
-   - `uploads/`, `tmp/` — preserves user uploads
-7. Uploads `cpanel-post-deploy.sh`
-8. SSHes in and runs `./post-deploy.sh`
-
-### Post-deploy script
-
-The `post-deploy.sh` script (runs ON cPanel) does:
-
-1. **Verifies bundled dependencies** — checks that `node_modules/@prisma`, `node_modules/.prisma`, and the engine binary are present (shipped from CI). No `npm install` runs on cPanel.
-2. **Verifies Prisma client** — confirms the generated client (from CI) is present
-3. **Verifies DATABASE_URL** — checks `.env` was written by the workflow
-4. **Restarts the Node.js app** — three methods, tried in order:
-   - `touch tmp/restart.txt` (Phusion Passenger)
-   - `uapi Nodejs restart_app app_name=...` (cPanel UAPI)
-   - `passenger-config restart-app` (if available)
-5. **Writes deploy history** to `logs/deploy-history.log`
-
-> **No `prisma` CLI commands run on cPanel** — both `prisma generate` and `prisma db push` happen in the GitHub Actions build job. This avoids the Prisma CLI crash that occurs when cPanel's jailshell blocks the engine binary download.
-
-### What's preserved between deploys
-
-The tarball extraction preserves these directories/files:
-- `.env` (written by the workflow from GitHub Secrets)
-- `backups/` — previous deployments for rollback
-- `logs/` — deploy history and runtime logs
-- `uploads/`, `tmp/` — temp files including `restart.txt`
-- PostgreSQL database (external — not a file, can't be touched)
-
-### What's replaced every deploy
-
-Everything else, including:
-- `server.js` and the entire `.next/standalone/` bundle
-- `.next/static/` — JS/CSS chunks (with content hashes for cache busting)
-- `public/` — static assets
-- `prisma/schema.prisma` — schema definition
-- `package.json` + lockfile
-- `scripts/` — seed scripts
+Quick check from local:
+```bash
+ssh -i ~/.ssh/trailgliders-deploy -p 22 trailgli@131.153.148.82 "tail -50 ~/prod"
+```
 
 ---
 
-## Manual operations
-
-### Trigger a production deploy manually
-
-1. Go to **Actions → Deploy to cPanel**
-2. Click **Run workflow** (top right)
-3. Choose branch (`main` for production)
-4. Optional: **Skip build** to reuse existing artifacts (faster)
-5. Click **Run workflow**
-
-### Rollback to previous deployment
+## Rollback
 
 ```bash
-# List available rollbacks
-ssh -p 22 youruser@yourserver.com "ls -t ~/trailgliders/backups/rollback-*.tgz"
+ssh -i ~/.ssh/trailgliders-deploy -p 22 trailgli@131.153.148.82
 
-# Roll back to a specific one
-ssh -p 22 youruser@yourserver.com <<EOF
-cd ~/trailgliders
-tar -xzf backups/rollback-20260618-120000.tgz
+cd ~/prod.trailglidersacademy.com.ng
+ls backups/rollback-*.tgz
+tar -xzf backups/rollback-YYYYMMDD-HHMMSS.tgz
 touch tmp/restart.txt
-EOF
 ```
 
-The site reverts within ~5 seconds.
+---
 
-### Local manual deploy (no GitHub)
+## Manual local deploy (no GitHub)
 
 ```bash
 cat > .env.deploy <<EOF
-CPANEL_HOST=server123.hosting.com
-CPANEL_USER=myuserna
+CPANEL_HOST=131.153.148.82
+CPANEL_USER=trailgli
 CPANEL_PORT=22
-CPANEL_PATH=/home/myuserna/trailgliders
-CPANEL_APP_NAME=trailgliders
+CPANEL_PATH=/home2/trailgli/prod.trailglidersacademy.com.ng
+CPANEL_APP_NAME=prod.trailglidersacademy.com.ng
+SSH_KEY=~/.ssh/trailgliders-deploy
+NODE_BIN=/opt/alt/alt-nodejs22/root/usr/bin
 EOF
 
 ./scripts/cpanel-deploy.sh
@@ -443,239 +318,40 @@ EOF
 
 ## Troubleshooting
 
-### "Permission denied (publickey)"
+### "Application error: a server-side exception has occurred"
+1. Check `cat ~/prod` for the actual error
+2. Common causes:
+   - Empty database -- run `node scripts/dist/seed.js`
+   - Missing env vars -- check cPanel Node.js Selector
+   - Schema out of sync -- run `prisma db push` from CI or locally with DATABASE_URL
 
-The SSH key isn't being accepted by cPanel. Check:
-1. Did you **Authorize** the public key in cPanel → SSH Access → Manage SSH Keys?
-2. Is the private key in `CPANEL_SSH_KEY` the **full file** including `-----BEGIN/END-----` lines?
-3. No trailing newline in the secret value?
-4. Is `CPANEL_PORT` correct? Namecheap uses `21098`.
-
-Test locally first:
+### "Cannot read properties of undefined (reading 'map')"
+Database tables exist but are empty. Seed them:
 ```bash
-ssh -i ~/.ssh/trailgliders-deploy -p PORT youruser@yourserver.com "echo ok"
+node scripts/dist/seed.js
+node scripts/dist/seed-slides.js
 ```
 
-### "Host key verification failed"
+### "tsx: command not found"
+Use compiled scripts: `node scripts/dist/seed.js` (not `npm run db:seed`)
 
-The `CPANEL_KNOWN_HOSTS` secret is wrong or missing. Re-run:
-```bash
-ssh-keyscan -H -p PORT HOST > known_hosts.txt
-```
-Update the secret with the new contents. Or remove the secret — the workflow falls back to `ssh-keyscan` at runtime (less secure).
+### Prisma CLI crashes on cPanel
+This is expected -- cPanel's jailshell blocks engine binary downloads. All Prisma operations should run from CI or your local machine, never on cPanel directly.
 
-### "rsync: connection unexpectedly closed"
-
-cPanel sometimes blocks rsync. Check:
-1. Is `rsync` installed on cPanel? `ssh youruser@yourserver.com "which rsync"`
-2. Memory limits — shared cPanel has tight limits. The runner retries on failure.
+### Database access denied (staging)
+Check cPanel > PostgreSQL Databases > verify the staging user has permissions on the staging database.
 
 ### Build succeeds but site doesn't update
-
-1. **App didn't restart** — Check cPanel → Setup Node.js App → click **Restart** manually
-2. **Browser cache** — Hard refresh (Ctrl+Shift+R) or incognito
-3. **CDN cache** — If behind Cloudflare, purge the cache
-
-### Prisma CLI crashes on cPanel (minified index.js dump in logs)
-
-If you see a stderr dump starting with `/home/.../nodevenv/.../node_modules/prisma/build/index.js:49` followed by minified JS source code, the Prisma CLI binary crashed on cPanel.
-
-**Root cause**: cPanel's jailshell blocks outbound internet from SSH sessions. When the post-deploy script ran `prisma db push` or `prisma generate`, Prisma tried to download its native engine binary, the download was blocked, and Prisma crashed.
-
-**Fix**: This is already fixed in the current deploy workflow. The workflow now:
-1. Runs `prisma generate` AND `prisma db push` from the GitHub Actions runner (which has full internet)
-2. Bundles `node_modules/@prisma`, `node_modules/.prisma`, and `node_modules/prisma` in the deploy tarball
-3. The post-deploy script no longer runs any `prisma` CLI commands — it just verifies the bundled client is present and restarts the app
-
-If you're still seeing this error after updating to the latest workflow, your cPanel server might have a stale `post-deploy.sh`. Run the deploy again — the workflow copies the latest `post-deploy.sh` to the server on each run.
-
-### "prisma db push" fails in the build job
-
-If the "Push database schema to production" step fails in the GitHub Actions build job (not on cPanel), check:
-
-1. **`PROD_DATABASE_URL` secret is set** — Settings → Secrets → Actions → `PROD_DATABASE_URL` must be a valid PostgreSQL connection string
-2. **Database is reachable from GitHub Actions** — if your Postgres is on cPanel localhost, GitHub Actions can't reach it. Use an external managed Postgres (Neon, Supabase) OR ensure your cPanel Postgres allows remote connections
-3. **Database exists** — create the database + user in cPanel → PostgreSQL Databases before the first deploy
-4. **Connection string format** — must be `postgresql://USER:PASS@HOST:5432/DB?schema=public`
-
-**Verify the connection from your laptop**:
-```bash
-psql "postgresql://user:pass@host:5432/db?schema=public" -c "SELECT 1;"
-```
-If that fails, the connection string or database setup is wrong.
-
-### ".env not found" error in post-deploy logs
-
-The post-deploy script sources `.env` to get `DATABASE_URL` for runtime. If it can't find `.env`:
-
-1. Check the "Write .env from secrets" step ran successfully in the workflow
-2. SSH in and verify:
-   ```bash
-   cat ~/trailgliders/.env
-   # Should show DATABASE_URL=postgresql://...
-   ```
-3. If `.env` is missing, the `PROD_DATABASE_URL` (and other `PROD_*`) secrets aren't set in GitHub
-
-### Detail pages return 404 after deploy
-
-Slugs are missing. Run:
-```bash
-ssh -p 22 youruser@yourserver.com
-cd ~/trailgliders
-npm run backfill:slugs
-```
-
-### Locale URLs (/en/, /fr/) return 404
-
-The next-intl middleware isn't deployed or the app didn't restart. Check:
-1. `src/middleware.ts` exists on the server
-2. `src/i18n/routing.ts` and `src/i18n/request-config.ts` exist
-3. Restart the app in cPanel
-
-### First deploy creates a fresh database (BAD!)
-
-You probably forgot to exclude something in rsync. Check the workflow's rsync command — it should have `--exclude='.env*'`. But since the database is PostgreSQL (external), rsync can't touch it. If you see empty content, the database wasn't seeded:
-
-```bash
-ssh youruser@yourserver.com
-cd ~/trailgliders
-npm run db:seed --force
-npm run seed:slides
-npm run migrate:security
-npm run backfill:slugs
-```
-
-### E2E tests fail with "connection refused"
-
-The Next.js server didn't start. Check the `server-logs` artifact in the Actions run. Common causes:
-- Missing env vars (the workflow sets placeholders — make sure they're valid)
-- Build failed silently
-- Prisma client wasn't generated
-
-### E2E tests fail on admin login
-
-The seeded admin credentials are:
-- Email: `admin@trailgliders.edu.ng`
-- Password: `TrailGliders2026!`
-
-If the seed script changed these, update the env vars in `.github/workflows/e2e.yml`:
-```yaml
-env:
-  ADMIN_EMAIL: your-new-email
-  ADMIN_PASSWORD: your-new-password
-```
-
-### Workflow doesn't trigger on push
-
-Check trigger conditions in the workflow file. `deploy.yml` ignores `.md` files:
-```yaml
-paths-ignore:
-  - '**.md'
-  - 'docs/**'
-```
-If your commit only changed `.md` files, the workflow won't run. Push a code change.
+1. Restart: `touch ~/prod.trailglidersacademy.com.ng/tmp/restart.txt`
+2. Or restart via cPanel Node.js Selector UI
+3. Hard refresh browser (Cmd+Shift+R)
 
 ---
 
 ## Security considerations
 
-### What's exposed
-- The private SSH key is stored as a GitHub Secret — encrypted at rest, never logged
-- The workflow deletes the key from the runner after the deploy
-- GitHub Actions runners are ephemeral VMs — destroyed after the job
-
-### What's NOT exposed
-- Your cPanel password (we use SSH keys, not passwords)
-- `SECRETS_MASTER_KEY`, `NEXTAUTH_SECRET`, app secrets (those live in cPanel's env vars, NOT GitHub)
-- The PostgreSQL database (external — rsync can't reach it)
-
-### Recommended hardening
-1. **Use a dedicated SSH key** for GitHub Actions (not your personal one)
-2. **Require manual approval for production deploys** — uncomment the `environment:` block in `deploy.yml` and configure required reviewers in GitHub Settings → Environments → production
-3. **Rotate the SSH key annually** — generate new, update cPanel + GitHub, remove old
-4. **Staging secrets are separate** from production secrets — never reuse `CPANEL_SSH_KEY` as `STAGING_CPANEL_SSH_KEY` unless they go to the same server (which is fine, but use different app paths)
-
----
-
-## Cost
-
-- **Public repos**: GitHub Actions is free, unlimited minutes
-- **Private repos**: 2,000 free minutes/month on Free tier, 3,000 on Pro
-- Each production deploy: ~5 minutes (3 build + 2 deploy)
-- Each E2E test run: ~5-7 minutes
-- Each staging deploy: ~3-5 minutes
-- Total: ~400-600 runs/month on free tier — plenty for a school site
-
----
-
-## Quick reference
-
-### GitHub Secrets (production — 11 total)
-
-**SSH connection (7):**
-
-| Secret | Example |
-|---|---|
-| `CPANEL_HOST` | `server123.hosting.com` |
-| `CPANEL_USER` | `myuserna` |
-| `CPANEL_PORT` | `22` |
-| `CPANEL_PATH` | `/home/myuserna/trailgliders` |
-| `CPANEL_APP_NAME` | `trailgliders` |
-| `CPANEL_SSH_KEY` | (entire private key file) |
-| `CPANEL_KNOWN_HOSTS` | (output of `ssh-keyscan`) |
-
-**App environment (4) — written to .env on server:**
-
-| Secret | Example |
-|---|---|
-| `PROD_DATABASE_URL` | `postgresql://user:pass@host:5432/db?schema=public` |
-| `PROD_NEXTAUTH_SECRET` | (output of `openssl rand -base64 32`) |
-| `PROD_NEXTAUTH_URL` | `https://trailgliders.com.ng` |
-| `PROD_SECRETS_MASTER_KEY` | (output of `openssl rand -base64 48`) |
-
-### GitHub Secrets (staging — optional)
-
-| Secret | Example |
-|---|---|
-| `STAGING_CPANEL_HOST` | (same as prod if same server) |
-| `STAGING_CPANEL_USER` | (same as prod) |
-| `STAGING_CPANEL_PORT` | `22` |
-| `STAGING_CPANEL_PATH` | `/home/myuserna/trailgliders-staging` |
-| `STAGING_CPANEL_APP_NAME` | `trailgliders-staging` |
-| `STAGING_CPANEL_SSH_KEY` | (same key is fine) |
-| `STAGING_CPANEL_KNOWN_HOSTS` | (same as prod) |
-| `STAGING_DATABASE_URL` | (separate staging Postgres URL!) |
-| `STAGING_NEXTAUTH_URL` | `https://staging.yourdomain.com` |
-| `STAGING_NEXTAUTH_SECRET` | (generate new) |
-| `STAGING_SECRETS_MASTER_KEY` | (generate new) |
-
-### GitHub Variables (not secrets)
-
-| Variable | Value | Purpose |
-|---|---|---|
-| `STAGING_ENABLED` | `true` | Enables staging deploys (opt-in) |
-
-### Common commands
-
-```bash
-# Trigger production deploy manually
-# Actions → Deploy to cPanel → Run workflow
-
-# Watch a deploy live
-# https://github.com/YOUR-ORG/trail-gliders-academy/actions
-
-# Roll back on cPanel
-ssh -p PORT user@host "cd ~/trailgliders && tar -xzf backups/rollback-TIMESTAMP.tgz && touch tmp/restart.txt"
-
-# View deploy history on cPanel
-ssh -p PORT user@host "tail -20 ~/trailgliders/logs/deploy-history.log"
-
-# Manual local deploy
-./scripts/cpanel-deploy.sh
-
-# Run E2E tests locally
-npm run e2e:install && npm run e2e
-
-# Test SSH from your machine
-ssh -i ~/.ssh/trailgliders-deploy -p PORT user@host "whoami"
-```
+- SSH private key is stored as a GitHub Secret (encrypted at rest, never logged)
+- The workflow deletes the key from the runner after deploy
+- Environment variables are in cPanel UI (not `.env` files, not in GitHub)
+- Only `PROD_DATABASE_URL` is in GitHub Secrets (needed for schema push from CI)
+- **Rotate credentials** if they are ever exposed in logs or output

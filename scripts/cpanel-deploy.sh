@@ -9,11 +9,11 @@
 # Config via .env.deploy (NOT committed):
 #   CPANEL_HOST=131.153.148.82
 #   CPANEL_USER=trailgli
-#   CPANEL_PATH=/home2/trailgli/trailgliders
-#   CPANEL_APP_NAME=trailgliders
+#   CPANEL_PATH=/home2/trailgli/prod.trailglidersacademy.com.ng
+#   CPANEL_APP_NAME=prod.trailglidersacademy.com.ng
 #   CPANEL_PORT=22
 #   SSH_KEY=~/.ssh/trailgliders-deploy
-#   NODE_BIN=/home2/trailgli/nodevenv/trailgliders/24/bin
+#   NODE_BIN=/opt/alt/alt-nodejs22/root/usr/bin
 #
 
 set -euo pipefail
@@ -42,7 +42,7 @@ CPANEL_PORT="${CPANEL_PORT:-22}"
 CPANEL_APP_NAME="${CPANEL_APP_NAME:-}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/trailgliders-deploy}"
-NODE_BIN="${NODE_BIN:-/home2/trailgli/nodevenv/trailgliders/24/bin}"
+NODE_BIN="${NODE_BIN:-/opt/alt/alt-nodejs22/root/usr/bin}"
 
 SSH_HOST="${CPANEL_USER}@${CPANEL_HOST}"
 SSH_CMD="ssh -i ${SSH_KEY} -p ${CPANEL_PORT} -o ServerAliveInterval=15 -o ServerAliveCountMax=20 ${SSH_HOST}"
