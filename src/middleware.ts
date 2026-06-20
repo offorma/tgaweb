@@ -33,6 +33,10 @@ export async function middleware(req: NextRequest) {
     const token = await getToken({
       req,
       secret: process.env.NEXTAUTH_SECRET,
+      // Must match the explicit cookie name in authOptions.cookies.sessionToken.name
+      // Without this, getToken() looks for "__Secure-next-auth.session-token" on HTTPS
+      // but the auth handler sets "next-auth.session-token" (no prefix)
+      cookieName: "next-auth.session-token",
     });
 
     if (!token) {
