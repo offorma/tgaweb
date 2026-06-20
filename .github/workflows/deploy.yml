@@ -140,40 +140,37 @@ jobs:
             "${SSH_TARGET}:${DEPLOY_PATH}/deploy-payload.tar.gz"
           echo "Upload complete"
 
-      - name: Preserve existing files
-        run: |
-          ssh cpanel "
-            cd '${{ secrets.CPANEL_PATH }}'
-            for d in backups logs uploads tmp; do
-              [ -d \$d ] && mv \$d /tmp/tga-preserve-\$d-\$\$ 2>/dev/null || true
-            done
-            for f in .env .env.local .env.production; do
-              [ -f \$f ] && cp \$f /tmp/tga-preserve-\$f-\$\$ 2>/dev/null || true
-            done
-            rm -rf node_modules 2>/dev/null || true
-            echo 'Preserved existing files'
-          "
-
-      - name: Extract payload
-        run: |
-          ssh cpanel "
-            cd '${{ secrets.CPANEL_PATH }}'
-            tar -xzf deploy-payload.tar.gz
-            rm -f deploy-payload.tar.gz
-            echo 'Extraction complete'
-          "
-
-      - name: Restore preserved files
+      - name: Extract payload (preserving backups, logs, uploads, .env)
         run: |
           ssh cpanel "
             DEPLOY_PATH='${{ secrets.CPANEL_PATH }}'
             cd \$DEPLOY_PATH
+            PRESERVE_DIR=/tmp/tga-preserve-\$\$
+
+            # ── Preserve existing files ──
+            mkdir -p \$PRESERVE_DIR
             for d in backups logs uploads tmp; do
-              [ -d /tmp/tga-preserve-\$d-\$\$ ] && mv /tmp/tga-preserve-\$d-\$\$ \$DEPLOY_PATH/\$d 2>/dev/null || true
+              [ -d \$d ] && mv \$d \$PRESERVE_DIR/\$d 2>/dev/null || true
             done
             for f in .env .env.local .env.production; do
-              [ -f /tmp/tga-preserve-\$f-\$\$ ] && mv /tmp/tga-preserve-\$f-\$\$ \$DEPLOY_PATH/\$f 2>/dev/null || true
+              [ -f \$f ] && cp \$f \$PRESERVE_DIR/\$f 2>/dev/null || true
             done
+            rm -rf node_modules 2>/dev/null || true
+            echo 'Preserved existing files'
+
+            # ── Extract new payload ──
+            tar -xzf deploy-payload.tar.gz
+            rm -f deploy-payload.tar.gz
+            echo 'Extraction complete'
+
+            # ── Restore preserved files ──
+            for d in backups logs uploads tmp; do
+              [ -d \$PRESERVE_DIR/\$d ] && mv \$PRESERVE_DIR/\$d \$DEPLOY_PATH/\$d 2>/dev/null || true
+            done
+            for f in .env .env.local .env.production; do
+              [ -f \$PRESERVE_DIR/\$f ] && mv \$PRESERVE_DIR/\$f \$DEPLOY_PATH/\$f 2>/dev/null || true
+            done
+            rm -rf \$PRESERVE_DIR 2>/dev/null || true
             echo 'Files restored'
             ls node_modules/@prisma 2>/dev/null | head -5
             ls node_modules/.prisma 2>/dev/null | head -5
