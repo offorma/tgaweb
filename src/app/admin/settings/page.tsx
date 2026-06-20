@@ -36,6 +36,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { HelpTip } from "@/components/admin/help-tip";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 const SECTIONS = [
   { id: "general", label: "General", tip: "Basic school identity: name, tagline, motto, founding year, and crest image path.", fields: [
@@ -303,21 +304,13 @@ export default function AdminSettingsPage() {
                       />
                     )}
                     {f.type === "image" && (
-                      <div className="mt-1.5 space-y-2">
-                        <Input
+                      <div className="mt-1.5">
+                        <ImageUploadField
                           id={f.name}
                           value={data[f.name] ?? ""}
-                          onChange={(e) => update(f.name, e.target.value)}
+                          onChange={(url) => update(f.name, url)}
+                          previewStyle="portrait"
                         />
-                        {data[f.name] && (
-                          <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-[var(--orange)]/30">
-                            <img
-                              src={data[f.name]}
-                              alt="Preview"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        )}
                       </div>
                     )}
                     {f.type === "select" && f.options && (

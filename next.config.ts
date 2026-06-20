@@ -59,7 +59,13 @@ const nextConfig: NextConfig = {
   },
   // Block unknown image domains — only allow self + the crest CDN
   images: {
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/dagd5c6pb/**",
+      },
+    ],
   },
   // Powered-By header — disable
   poweredByHeader: false,

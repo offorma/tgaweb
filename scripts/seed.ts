@@ -11,7 +11,7 @@
  *   npx tsx scripts/seed.ts --force
  *
  * Default admin credentials:
- *   Email:    admin@trailgliders.edu.ng
+ *   Email:    admin@trailglidersacademy.com.ng
  *   Password: TrailGliders2026!
  */
 
@@ -29,7 +29,7 @@ function slugify(text: string): string {
 }
 
 const DEFAULT_ADMIN = {
-  email: "admin@trailgliders.edu.ng",
+  email: "admin@trailglidersacademy.com.ng",
   name: "Site Administrator",
   password: "TrailGliders2026!",
 };

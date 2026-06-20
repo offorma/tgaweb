@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/admin/shell";
 import { HelpTip } from "@/components/admin/help-tip";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { SlidePreview } from "@/components/admin/slide-preview";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
@@ -551,20 +552,15 @@ function SlideEditForm({
         <div className="sm:col-span-2">
           <Label className="text-xs font-semibold flex items-center gap-1">
             Background Image *
-            <HelpTip content="Wide landscape image (16:9 or wider). Used as the slide background and as the video poster image. Use /images/filename.jpg or an https URL." />
+            <HelpTip content="Wide landscape image (16:9 or wider). Used as the slide background and as the video poster image. Upload or paste an image URL." />
           </Label>
-          <Input
-            value={formData.image}
-            onChange={(e) => update("image", e.target.value)}
-            required
-            className="mt-1.5"
-            placeholder="/images/hero.jpg"
-          />
-          {formData.image && (
-            <div className="mt-2 relative aspect-video rounded-lg overflow-hidden bg-muted max-h-32">
-              <img src={formData.image} alt="Preview" className="h-full w-full object-cover" />
-            </div>
-          )}
+          <div className="mt-1.5">
+            <ImageUploadField
+              value={formData.image}
+              onChange={(url) => update("image", url)}
+              required
+            />
+          </div>
         </div>
 
         <div className="sm:col-span-2">

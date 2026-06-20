@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -495,30 +496,12 @@ function EditForm({
             )}
 
             {f.type === "image" && (
-              <div className="space-y-2">
-                <Input
-                  id={f.name}
-                  value={formData[f.name] ?? ""}
-                  onChange={(e) => update(f.name, e.target.value)}
-                  placeholder="/images/..."
-                  required={f.required}
-                />
-                {formData[f.name] && (
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-muted border border-input">
-                    <img
-                      src={formData[f.name]}
-                      alt="Preview"
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.opacity = "0.3";
-                      }}
-                    />
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Use a path like <code className="bg-muted px-1 py-0.5 rounded">/images/filename.jpg</code> or an https URL.
-                </p>
-              </div>
+              <ImageUploadField
+                id={f.name}
+                value={formData[f.name] ?? ""}
+                onChange={(url) => update(f.name, url)}
+                required={f.required}
+              />
             )}
           </div>
         ))}

@@ -15,14 +15,14 @@ const cleanLongText = (max: number) =>
     .min(1, "Required")
     .max(max, `Must be ${max} characters or fewer`);
 
-// Strict URL/path check for images — accept relative paths or https URLs
+// Strict URL/path check for images — accept relative paths or https URLs (including Cloudinary with query params)
 const imagePath = z
   .string()
   .trim()
   .min(1, "Required")
-  .max(500)
+  .max(1000)
   .regex(
-    /^(\/[a-zA-Z0-9._\-\/]+|https:\/\/[a-zA-Z0-9.\-]+\/[a-zA-Z0-9._\-\/]+)$/,
+    /^(\/[a-zA-Z0-9._\-\/]+|https:\/\/[a-zA-Z0-9.\-]+\/[a-zA-Z0-9._\-\/,%]+(\?[a-zA-Z0-9._\-=&,%\/]+)?)$/,
     "Must be a relative path (/images/...) or https URL"
   );
 
