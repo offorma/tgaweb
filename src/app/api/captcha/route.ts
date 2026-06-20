@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { rateLimitByIp, getClientIp } from "@/lib/rate-limit";
 import { issueMathCaptcha, issueTimeToken, getTurnstileSiteKey } from "@/lib/bot-defense";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/captcha
  * Issues a fresh math captcha + time-trap token for a form.
