@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminHandler, parseJsonBody } from "@/lib/admin-api";
 import { getAllSecrets, getSecretStats, createSecret } from "@/lib/secrets-data";

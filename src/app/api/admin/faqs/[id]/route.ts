@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { makeCrudItemRoutes } from "@/lib/crud-factory";
 import { FaqSchema } from "@/lib/validations/site";
 

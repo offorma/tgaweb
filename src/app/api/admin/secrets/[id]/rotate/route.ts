@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminHandler, isValidId } from "@/lib/admin-api";
 import { db } from "@/lib/db";
