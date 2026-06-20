@@ -172,6 +172,9 @@ $SSH_CMD "
     [ -f \$f ] && cp \$f /tmp/tga-deploy-\$\$/\$f 2>/dev/null || true
   done
 
+  # Clean old deploy files (preserved dirs are safe in /tmp)
+  rm -rf .next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public 2>/dev/null || true
+
   # Extract
   tar -xzf deploy.tar.gz
   rm -f deploy.tar.gz

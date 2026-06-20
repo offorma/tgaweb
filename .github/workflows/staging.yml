@@ -144,10 +144,8 @@ jobs:
               [ -f \$f ] && cp \$f /tmp/tga-stg-\$f-\$\$ 2>/dev/null || true
             done
 
-            # Remove existing node_modules (could be cPanel nodevenv symlink
-            # OR our previous bundled node_modules). Our tarball ships a fresh
-            # node_modules/@prisma + node_modules/.prisma from the CI build.
-            rm -rf node_modules 2>/dev/null || true
+            # Clean old deploy files (preserved dirs are safe in /tmp)
+            rm -rf .next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public 2>/dev/null || true
 
             # Extract
             tar -xzf deploy-payload.tar.gz
