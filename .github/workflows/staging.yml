@@ -59,6 +59,7 @@ jobs:
           cp -r node_modules/@prisma deploy-payload/app/node_modules/@prisma
           cp -r node_modules/.prisma deploy-payload/app/node_modules/.prisma
           cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
+          cp -r node_modules/bcryptjs deploy-payload/app/node_modules/bcryptjs
           tar -czf deploy-payload.tar.gz \
             --exclude='node_modules/prisma/build' \
             -C deploy-payload/app .

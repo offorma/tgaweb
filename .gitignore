@@ -2,6 +2,9 @@
 
 # dependencies
 node_modules
+
+# compiled deploy scripts
+scripts/dist
 /.pnp
 .pnp.*
 .yarn/*

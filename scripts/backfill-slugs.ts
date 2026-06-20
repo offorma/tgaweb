@@ -6,21 +6,44 @@
  * ensures uniqueness with -2, -3 suffixes.
  *
  * Usage:
- *   npx tsx scripts/backfill-slugs.ts
+ *   npx tsx scripts/backfill-slugs.ts   (local dev)
+ *   node scripts/dist/backfill-slugs.js (cPanel)
  *
  * Safe to run multiple times — skips records that already have a slug.
  */
-import { db } from "../src/lib/db";
-import { slugify, ensureUniqueSlug } from "../src/lib/slug";
+import { PrismaClient } from "@prisma/client";
+
+const db = new PrismaClient();
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function ensureUniqueSlug(
+  base: string,
+  finder: (slug: string) => Promise<unknown | null>,
+  currentId?: string,
+): Promise<string> {
+  let slug = base;
+  let counter = 2;
+  while (true) {
+    const existing = await finder(slug);
+    if (!existing || (currentId && (existing as any)?.id === currentId)) return slug;
+    slug = `${base}-${counter++}`;
+  }
+}
 
 async function backfill() {
   console.log("━".repeat(60));
   console.log("  Backfilling slugs for existing records");
   console.log("━".repeat(60));
 
-  // ─── News ────────────────────────────────────────────────────────────
+  // News
   const news = await db.newsItem.findMany({ where: { slug: "" } });
-  console.log(`\n📰 News items without slug: ${news.length}`);
+  console.log(`\nNews items without slug: ${news.length}`);
   for (const item of news) {
     const base = slugify(item.title);
     const slug = await ensureUniqueSlug(base, (s) =>
@@ -29,9 +52,9 @@ async function backfill() {
     console.log(`  ✓ ${item.title} → ${slug}`);
   }
 
-  // ─── Programs ────────────────────────────────────────────────────────
+  // Programs
   const programs = await db.program.findMany({ where: { slug: "" } });
-  console.log(`\n🎓 Programs without slug: ${programs.length}`);
+  console.log(`\nPrograms without slug: ${programs.length}`);
   for (const item of programs) {
     const base = slugify(item.name);
     const slug = await ensureUniqueSlug(base, (s) =>
@@ -40,9 +63,9 @@ async function backfill() {
     console.log(`  ✓ ${item.name} → ${slug}`);
   }
 
-  // ─── Faculty ─────────────────────────────────────────────────────────
+  // Faculty
   const faculty = await db.faculty.findMany({ where: { slug: "" } });
-  console.log(`\n👨‍🏫 Faculty without slug: ${faculty.length}`);
+  console.log(`\nFaculty without slug: ${faculty.length}`);
   for (const item of faculty) {
     const base = slugify(item.name);
     const slug = await ensureUniqueSlug(base, (s) =>
@@ -51,9 +74,9 @@ async function backfill() {
     console.log(`  ✓ ${item.name} → ${slug}`);
   }
 
-  // ─── Testimonials ────────────────────────────────────────────────────
+  // Testimonials
   const testimonials = await db.testimonial.findMany({ where: { slug: "" } });
-  console.log(`\n💬 Testimonials without slug: ${testimonials.length}`);
+  console.log(`\nTestimonials without slug: ${testimonials.length}`);
   for (const item of testimonials) {
     const base = slugify(item.name);
     const slug = await ensureUniqueSlug(base, (s) =>
@@ -62,9 +85,9 @@ async function backfill() {
     console.log(`  ✓ ${item.name} → ${slug}`);
   }
 
-  // ─── FAQs ────────────────────────────────────────────────────────────
+  // FAQs
   const faqs = await db.faq.findMany({ where: { slug: "" } });
-  console.log(`\n❓ FAQs without slug: ${faqs.length}`);
+  console.log(`\nFAQs without slug: ${faqs.length}`);
   for (const item of faqs) {
     const base = slugify(item.question);
     const slug = await ensureUniqueSlug(base, (s) =>
@@ -73,9 +96,9 @@ async function backfill() {
     console.log(`  ✓ ${item.question.slice(0, 50)}... → ${slug}`);
   }
 
-  // ─── Campus items ────────────────────────────────────────────────────
+  // Campus items
   const campus = await db.campusItem.findMany({ where: { slug: "" } });
-  console.log(`\n🏫 Campus items without slug: ${campus.length}`);
+  console.log(`\nCampus items without slug: ${campus.length}`);
   for (const item of campus) {
     const base = slugify(item.title);
     const slug = await ensureUniqueSlug(base, (s) =>

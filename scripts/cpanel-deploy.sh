@@ -122,6 +122,7 @@ mkdir -p "$TMPDIR/app/node_modules"
 cp -r node_modules/@prisma "$TMPDIR/app/node_modules/@prisma"
 cp -r node_modules/.prisma "$TMPDIR/app/node_modules/.prisma"
 cp -r node_modules/prisma "$TMPDIR/app/node_modules/prisma"
+cp -r node_modules/bcryptjs "$TMPDIR/app/node_modules/bcryptjs"
 
 # Create tarball with bundled Prisma (exclude prisma build dir to save space)
 tar -czf "$TMPDIR/deploy.tar.gz" \
