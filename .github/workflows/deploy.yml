@@ -212,11 +212,12 @@ jobs:
         run: |
           ssh cpanel "
             DEPLOY_PATH='${{ secrets.CPANEL_PATH }}'
-            PUBLIC_HTML=\"\$(dirname \$DEPLOY_PATH)/public_html\"
+            APP_NAME=\$(basename \$DEPLOY_PATH)
+            PUBLIC_HTML=\"\$(dirname \$DEPLOY_PATH)/public_html/\$APP_NAME\"
+            mkdir -p \$PUBLIC_HTML/_next
 
             # Next.js static assets (JS/CSS chunks)
             rm -rf \$PUBLIC_HTML/_next/static
-            mkdir -p \$PUBLIC_HTML/_next
             cp -r \$DEPLOY_PATH/.next/static \$PUBLIC_HTML/_next/static
 
             # Public folder (images, favicon, robots.txt, etc.)

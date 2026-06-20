@@ -212,11 +212,12 @@ jobs:
         run: |
           ssh staging "
             STAGING_PATH='${{ secrets.STAGING_CPANEL_PATH }}'
-            PUBLIC_HTML=\"\$(dirname \$STAGING_PATH)/public_html\"
+            APP_NAME=\$(basename \$STAGING_PATH)
+            PUBLIC_HTML=\"\$(dirname \$STAGING_PATH)/public_html/\$APP_NAME\"
+            mkdir -p \$PUBLIC_HTML/_next
 
             # Next.js static assets (JS/CSS chunks)
             rm -rf \$PUBLIC_HTML/_next/static
-            mkdir -p \$PUBLIC_HTML/_next
             cp -r \$STAGING_PATH/.next/static \$PUBLIC_HTML/_next/static
 
             # Public folder (images, favicon, robots.txt, etc.)
