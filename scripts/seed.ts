@@ -17,6 +17,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { encryptSecret, isMasterKeyConfigured } from "../src/lib/secrets";
 
 const db = new PrismaClient();
 
@@ -110,13 +111,55 @@ async function main() {
       applyButtonType: "scroll",
       applyButtonUrl: "#admissions",
       applyButtonStyle: "primary",
-      // Cloudinary — read from env vars so credentials aren't hardcoded in seed
-      cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
-      cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
-      cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
     },
   });
   console.log("  ✓ Site settings");
+
+  // 2b) Cloudinary credentials → secrets vault
+  const cloudinarySecrets = [
+    {
+      key: "CLOUDINARY_CLOUD_NAME",
+      value: process.env.CLOUDINARY_CLOUD_NAME || "",
+      description: "Cloudinary cloud name for image and file uploads",
+    },
+    {
+      key: "CLOUDINARY_API_KEY",
+      value: process.env.CLOUDINARY_API_KEY || "",
+      description: "Cloudinary API key",
+    },
+    {
+      key: "CLOUDINARY_API_SECRET",
+      value: process.env.CLOUDINARY_API_SECRET || "",
+      description: "Cloudinary API secret (keep confidential)",
+    },
+  ];
+  if (isMasterKeyConfigured()) {
+    for (const s of cloudinarySecrets) {
+      if (!s.value) continue; // skip if env var not set
+      const existing = await db.secret.findUnique({ where: { key: s.key } });
+      if (existing && !force) {
+        console.log(`  ⏭ Secret ${s.key} (already exists)`);
+        continue;
+      }
+      const { ciphertext, previewHint } = encryptSecret(s.value);
+      await db.secret.upsert({
+        where: { key: s.key },
+        update: { ciphertext, previewHint, lastRotatedAt: new Date() },
+        create: {
+          key: s.key,
+          category: "storage",
+          description: s.description,
+          ciphertext,
+          previewHint,
+          lastRotatedAt: new Date(),
+        },
+      });
+      console.log(`  ✓ Secret ${s.key}`);
+    }
+  } else {
+    console.log("  ⚠ SECRETS_MASTER_KEY not set — skipping Cloudinary vault secrets");
+    console.log("    Add them manually in Admin > Secrets after setting SECRETS_MASTER_KEY");
+  }
 
   // Helper: only seed a table if it's empty (or --force was used)
   async function seedIfEmpty<T>(

@@ -259,6 +259,8 @@ export function Footer({ settings, downloads = [] }: { settings: SiteSettings | 
             <span className="ml-1">Made with</span>
             <Heart className="inline h-3 w-3 mx-1 text-[var(--orange)] fill-[var(--orange)]" />
             <span>in Nsukka, Nigeria</span>
+            <span className="mx-1">•</span>
+            <a href="/admin/login" className="text-white/40 hover:text-[var(--orange-light)] transition-colors">Admin</a>
           </div>
 
           {SOCIAL.length > 0 && (
