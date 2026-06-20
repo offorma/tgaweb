@@ -70,6 +70,7 @@ export function adminHandler(
     const token = await getToken({
       req: req as any,
       secret: process.env.NEXTAUTH_SECRET,
+      cookieName: "next-auth.session-token",
     });
 
     if (!token) {

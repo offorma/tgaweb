@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2) Auth
-  const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET, cookieName: "next-auth.session-token" });
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
