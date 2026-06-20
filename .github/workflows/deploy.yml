@@ -35,6 +35,23 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Configure SSH tunnel
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CPANEL_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H -p ${{ secrets.CPANEL_PORT }} ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Start SSH tunnel to database
+        run: |
+          ssh -f -N -L 5432:127.0.0.200:5432 \
+            -i ~/.ssh/deploy_key \
+            -p ${{ secrets.CPANEL_PORT }} \
+            -o StrictHostKeyChecking=accept-new \
+            -o ServerAliveInterval=15 \
+            ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}
+          echo "SSH tunnel established (localhost:5432 → cPanel 127.0.0.200:5432)"
+
       - name: Install dependencies
         run: npm ci
 
@@ -42,9 +59,6 @@ jobs:
         run: npx prisma generate
 
       - name: Push database schema to production
-        # Run prisma db push FROM the GitHub runner (which has full internet +
-        # correct architecture). This avoids the Prisma CLI crash on cPanel
-        # where jailshell blocks the engine binary download.
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: npx prisma db push --accept-data-loss --skip-generate
@@ -53,6 +67,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: npm run build
+
+      - name: Close SSH tunnel
+        if: always()
+        run: |
+          pkill -f "ssh -f -N -L 5432" || true
+          rm -f ~/.ssh/deploy_key
 
       - name: Stage deploy payload
         run: |

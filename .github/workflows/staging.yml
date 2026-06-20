@@ -31,6 +31,37 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Configure SSH tunnel
+        run: |
+          mkdir -p ~/.ssh
+          SSH_KEY="${{ secrets.STAGING_CPANEL_SSH_KEY }}"
+          [ -z "$SSH_KEY" ] && SSH_KEY="${{ secrets.CPANEL_SSH_KEY }}"
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          TUNNEL_HOST="${{ secrets.STAGING_CPANEL_HOST }}"
+          [ -z "$TUNNEL_HOST" ] && TUNNEL_HOST="${{ secrets.CPANEL_HOST }}"
+          TUNNEL_PORT="${{ secrets.STAGING_CPANEL_PORT }}"
+          [ -z "$TUNNEL_PORT" ] && TUNNEL_PORT="${{ secrets.CPANEL_PORT }}"
+          TUNNEL_USER="${{ secrets.STAGING_CPANEL_USER }}"
+          [ -z "$TUNNEL_USER" ] && TUNNEL_USER="${{ secrets.CPANEL_USER }}"
+          ssh-keyscan -H -p ${TUNNEL_PORT} ${TUNNEL_HOST} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Start SSH tunnel to database
+        run: |
+          TUNNEL_HOST="${{ secrets.STAGING_CPANEL_HOST }}"
+          [ -z "$TUNNEL_HOST" ] && TUNNEL_HOST="${{ secrets.CPANEL_HOST }}"
+          TUNNEL_PORT="${{ secrets.STAGING_CPANEL_PORT }}"
+          [ -z "$TUNNEL_PORT" ] && TUNNEL_PORT="${{ secrets.CPANEL_PORT }}"
+          TUNNEL_USER="${{ secrets.STAGING_CPANEL_USER }}"
+          [ -z "$TUNNEL_USER" ] && TUNNEL_USER="${{ secrets.CPANEL_USER }}"
+          ssh -f -N -L 5432:127.0.0.200:5432 \
+            -i ~/.ssh/deploy_key \
+            -p ${TUNNEL_PORT} \
+            -o StrictHostKeyChecking=accept-new \
+            -o ServerAliveInterval=15 \
+            ${TUNNEL_USER}@${TUNNEL_HOST}
+          echo "SSH tunnel established (localhost:5432 → cPanel 127.0.0.200:5432)"
+
       - name: Install dependencies
         run: npm ci
 
@@ -38,8 +69,6 @@ jobs:
         run: npx prisma generate
 
       - name: Push database schema to staging
-        # Run prisma db push FROM the GitHub runner (avoids Prisma CLI crash
-        # on cPanel's restricted jailshell environment).
         if: ${{ vars.STAGING_ENABLED == 'true' }}
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
@@ -49,6 +78,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: npm run build
+
+      - name: Close SSH tunnel
+        if: always()
+        run: |
+          pkill -f "ssh -f -N -L 5432" || true
+          rm -f ~/.ssh/deploy_key
 
       - name: Create deploy tarball
         run: |
