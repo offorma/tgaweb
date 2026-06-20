@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_BIN: /home2/trailgli/nodevenv/trailgliders/24/bin
+  NODE_BIN: /opt/alt/alt-nodejs22/root/usr/bin
 
 jobs:
   build:
