@@ -141,6 +141,9 @@ jobs:
       - name: Test SSH connection
         run: ssh cpanel "echo 'SSH OK'; whoami"
 
+      - name: Ensure deploy directory exists
+        run: ssh cpanel "mkdir -p '${{ secrets.CPANEL_PATH }}'"
+
       - name: Backup current deployment
         run: |
           ssh cpanel "
