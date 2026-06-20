@@ -94,7 +94,9 @@ export function makeCrudItemRoutes(cfg: CrudConfig) {
     if (!isValidId(id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
-    const body = await parseJsonBody(req);
+    const rawBody = await parseJsonBody(req);
+    // Strip DB-only fields the client sends back from the GET response
+    const { id: _id, createdAt: _ca, updatedAt: _ua, ...body } = rawBody as Record<string, unknown>;
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(

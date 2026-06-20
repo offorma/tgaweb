@@ -14,7 +14,9 @@ export const GET = adminHandler(async () => {
 // PUT — update singleton (requires ADMIN)
 export const PUT = adminHandler(async (req) => {
   const body = await parseJsonBody(req);
-  const parsed = SiteSettingsSchema.safeParse(body);
+  // Strip DB-only fields the client sends back from the GET response
+  const { id, createdAt, updatedAt, ...data } = body as Record<string, unknown>;
+  const parsed = SiteSettingsSchema.safeParse(data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", details: parsed.error.flatten() },

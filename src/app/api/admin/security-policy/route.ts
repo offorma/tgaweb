@@ -36,7 +36,8 @@ export const GET = adminHandler(async () => {
  * get mustEnable2FA=true so they're forced to set it up on next login.
  */
 export const PUT = adminHandler(async (req, user) => {
-  const body = await parseJsonBody(req);
+  const rawBody = await parseJsonBody(req);
+  const { id: _id, createdAt: _ca, updatedAt: _ua, ...body } = rawBody as Record<string, unknown>;
   const parsed = SecurityPolicySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

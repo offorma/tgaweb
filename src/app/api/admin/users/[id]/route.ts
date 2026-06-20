@@ -55,7 +55,8 @@ export const PUT = adminHandler(async (req, user, ctx) => {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const body = await parseJsonBody(req);
+  const rawBody = await parseJsonBody(req);
+  const { id: _id, createdAt: _ca, updatedAt: _ua, passwordHash: _ph, ...body } = rawBody as Record<string, unknown>;
   const parsed = UserUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
