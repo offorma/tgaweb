@@ -160,50 +160,50 @@ jobs:
             fi
           "
 
-      - name: Upload and extract payload
+      - name: Upload payload
         run: |
           DEPLOY_PATH="${{ secrets.CPANEL_PATH }}"
           SSH_TARGET="${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}"
-
-          # Upload the tarball
           scp -i ~/.ssh/deploy_key -P ${{ secrets.CPANEL_PORT }} \
             deploy-payload.tar.gz \
             "${SSH_TARGET}:${DEPLOY_PATH}/deploy-payload.tar.gz"
+          echo "Upload complete"
 
-          # Extract on server, preserving .env, backups, logs, uploads, tmp
+      - name: Preserve existing files
+        run: |
           ssh cpanel "
-            DEPLOY_PATH='${DEPLOY_PATH}'
-            cd \$DEPLOY_PATH
-
-            # Save preserved dirs out of the way
+            cd '${{ secrets.CPANEL_PATH }}'
             for d in backups logs uploads tmp; do
               [ -d \$d ] && mv \$d /tmp/tga-preserve-\$d-\$\$ 2>/dev/null || true
             done
-            # Save env files
             for f in .env .env.local .env.production; do
               [ -f \$f ] && cp \$f /tmp/tga-preserve-\$f-\$\$ 2>/dev/null || true
             done
-
-            # Remove existing node_modules (could be a cPanel nodevenv symlink
-            # OR our previous bundled node_modules). Our tarball ships a fresh
-            # node_modules/@prisma + node_modules/.prisma so the runtime client
-            # and engine binaries are present without needing prisma CLI on cPanel.
             rm -rf node_modules 2>/dev/null || true
+            echo 'Preserved existing files'
+          "
 
-            # Extract new payload (overwrites everything else)
+      - name: Extract payload
+        run: |
+          ssh cpanel "
+            cd '${{ secrets.CPANEL_PATH }}'
             tar -xzf deploy-payload.tar.gz
             rm -f deploy-payload.tar.gz
+            echo 'Extraction complete'
+          "
 
-            # Restore preserved dirs and files
+      - name: Restore preserved files
+        run: |
+          ssh cpanel "
+            DEPLOY_PATH='${{ secrets.CPANEL_PATH }}'
+            cd \$DEPLOY_PATH
             for d in backups logs uploads tmp; do
               [ -d /tmp/tga-preserve-\$d-\$\$ ] && mv /tmp/tga-preserve-\$d-\$\$ \$DEPLOY_PATH/\$d 2>/dev/null || true
             done
             for f in .env .env.local .env.production; do
               [ -f /tmp/tga-preserve-\$f-\$\$ ] && mv /tmp/tga-preserve-\$f-\$\$ \$DEPLOY_PATH/\$f 2>/dev/null || true
             done
-
-            echo 'Payload extracted'
-            echo 'node_modules contents:'
+            echo 'Files restored'
             ls node_modules/@prisma 2>/dev/null | head -5
             ls node_modules/.prisma 2>/dev/null | head -5
           "
