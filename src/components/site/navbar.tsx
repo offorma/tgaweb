@@ -30,6 +30,12 @@ export function Navbar({ settings }: { settings: SiteSettings | null }) {
   const phone = settings?.phone || "";
   const hours = settings?.hours || "";
 
+  const socialLinks = [
+    { label: "Facebook", url: settings?.facebookUrl },
+    { label: "Instagram", url: settings?.instagramUrl },
+    { label: "YouTube", url: settings?.youtubeUrl },
+  ].filter((s) => s.url);
+
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 40);
@@ -60,7 +66,7 @@ export function Navbar({ settings }: { settings: SiteSettings | null }) {
 
   return (
     <>
-      <div className="hidden md:block bg-[var(--navy)] text-white/90 text-xs">
+      <div className="hidden md:block bg-[var(--navy)] text-white/90 text-xs relative z-[60]">
         <div className="max-w-7xl mx-auto px-6 h-9 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1.5">
@@ -71,26 +77,26 @@ export function Navbar({ settings }: { settings: SiteSettings | null }) {
             <span className="text-white/80">{hours}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-white/60 hidden sm:inline">{t("followJourney")}</span>
-            <div className="flex items-center gap-2">
-              {[
-                { label: "Facebook", url: settings?.facebookUrl },
-                { label: "Instagram", url: settings?.instagramUrl },
-                { label: "YouTube", url: settings?.youtubeUrl },
-              ].filter((s) => s.url).map((s) => (
-                <a
-                  key={s.label}
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[var(--orange)] transition-colors"
-                  aria-label={s.label}
-                >
-                  {s.label}
-                </a>
-              ))}
-            </div>
-            <span className="text-white/20 hidden sm:inline">|</span>
+            {socialLinks.length > 0 && (
+              <>
+                <span className="text-white/60 hidden sm:inline">{t("followJourney")}</span>
+                <div className="flex items-center gap-2">
+                  {socialLinks.map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-[var(--orange)] transition-colors"
+                      aria-label={s.label}
+                    >
+                      {s.label}
+                    </a>
+                  ))}
+                </div>
+                <span className="text-white/20 hidden sm:inline">|</span>
+              </>
+            )}
             <LanguageSwitcher className="text-white/90" />
           </div>
         </div>

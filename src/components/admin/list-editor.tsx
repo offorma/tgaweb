@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { FileUploadField } from "@/components/admin/file-upload-field";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -44,7 +45,7 @@ export type FieldDef =
   | {
       name: string;
       label: string;
-      type: "text" | "textarea" | "number" | "select" | "date" | "checkbox" | "image";
+      type: "text" | "textarea" | "number" | "select" | "date" | "checkbox" | "image" | "file";
       required?: boolean;
       placeholder?: string;
       helpText?: string;
@@ -500,6 +501,19 @@ function EditForm({
                 id={f.name}
                 value={formData[f.name] ?? ""}
                 onChange={(url) => update(f.name, url)}
+                required={f.required}
+              />
+            )}
+
+            {f.type === "file" && (
+              <FileUploadField
+                id={f.name}
+                value={formData[f.name] ?? ""}
+                onChange={(url, meta) => {
+                  update(f.name, url);
+                  if (meta?.fileType) update("fileType", meta.fileType);
+                  if (meta?.fileSize) update("fileSize", meta.fileSize);
+                }}
                 required={f.required}
               />
             )}

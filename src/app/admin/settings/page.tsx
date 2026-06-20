@@ -79,6 +79,11 @@ const SECTIONS = [
       { value: "outline", label: "Outline (ghost)" },
     ]},
   ]},
+  { id: "cloudinary", label: "Cloudinary", tip: "Cloud storage credentials for image and file uploads. These are read from environment variables on first seed, then managed here.", fields: [
+    { name: "cloudinaryCloudName", label: "Cloud Name", type: "text", required: true, tip: "Your Cloudinary cloud name (e.g. dagd5c6pb)." },
+    { name: "cloudinaryApiKey", label: "API Key", type: "text", required: true, tip: "Your Cloudinary API key." },
+    { name: "cloudinaryApiSecret", label: "API Secret", type: "text", required: true, tip: "Your Cloudinary API secret. Keep this confidential." },
+  ]},
   { id: "social", label: "Social Media", tip: "Links to your social media profiles. Leave blank to hide the icon — no dead links will show.", fields: [
     { name: "facebookUrl", label: "Facebook URL", type: "text", tip: "Full URL: https://facebook.com/yourpage. Leave blank to hide." },
     { name: "instagramUrl", label: "Instagram URL", type: "text", tip: "Full URL: https://instagram.com/yourhandle. Leave blank to hide." },

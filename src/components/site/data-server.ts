@@ -15,6 +15,7 @@ import {
   getFaqs,
   getCampusItems,
   getActiveSlides,
+  getPublishedDownloads,
 } from "@/lib/content";
 
 export { getSiteSettings } from "@/lib/content";
@@ -35,6 +36,7 @@ export async function getSiteData() {
     faqs,
     campusItems,
     slides,
+    downloads,
   ] = await Promise.all([
     getSiteSettings(),
     getStats(),
@@ -47,6 +49,7 @@ export async function getSiteData() {
     getFaqs(),
     getCampusItems(),
     getActiveSlides(),
+    getPublishedDownloads(),
   ]);
 
   return {
@@ -61,6 +64,7 @@ export async function getSiteData() {
     faqs,
     campusItems,
     slides,
+    downloads,
   };
 }
 

@@ -110,6 +110,10 @@ async function main() {
       applyButtonType: "scroll",
       applyButtonUrl: "#admissions",
       applyButtonStyle: "primary",
+      // Cloudinary — read from env vars so credentials aren't hardcoded in seed
+      cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
+      cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
+      cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
     },
   });
   console.log("  ✓ Site settings");

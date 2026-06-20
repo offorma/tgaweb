@@ -25,6 +25,8 @@ import {
   KeyRound,
   UserCog,
   GalleryVerticalEnd,
+  FileDown,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -41,6 +43,8 @@ const NAV = [
   { href: "/admin/faqs", label: "FAQs", icon: HelpCircle, tip: "Manage the frequently asked questions shown in the accordion section." },
   { href: "/admin/admissions", label: "Admissions", icon: ListChecks, tip: "Edit the 4-step application process timeline shown on the homepage." },
   { href: "/admin/campus", label: "Campus Life", icon: ImageIcon, tip: "Manage the photo grid showing sports, arts, STEM, library, and other campus activities." },
+  { href: "/admin/downloads", label: "Downloads", icon: FileDown, tip: "Manage downloadable files (PDFs, documents) shown in the site footer." },
+  { href: "/admin/media", label: "Media Library", icon: FolderOpen, tip: "View, copy URLs, or delete images and documents uploaded to Cloudinary." },
   { href: "/admin/secrets", label: "Secrets Vault", icon: KeyRound, tip: "Encrypted storage for SMTP passwords, payment gateway keys, and other sensitive credentials. Master key lives in your cPanel environment." },
   { href: "/admin/users", label: "User Management", icon: UserCog, tip: "Create and manage admin & editor accounts. New admins are required to enable 2FA on first login." },
 ];

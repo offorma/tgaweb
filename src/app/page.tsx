@@ -43,7 +43,7 @@ export default async function Home() {
         <FAQ faqs={data.faqs} />
         <Contact settings={data.settings} />
       </main>
-      <Footer settings={data.settings} />
+      <Footer settings={data.settings} downloads={data.downloads} />
     </div>
   );
 }

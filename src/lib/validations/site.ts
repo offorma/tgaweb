@@ -58,6 +58,10 @@ export const SiteSettingsSchema = z.strictObject({
   applyButtonType: z.enum(["scroll", "external", "mailto"]).default("scroll"),
   applyButtonUrl: cleanText(500),
   applyButtonStyle: z.enum(["primary", "outline"]).default("primary"),
+  // Cloudinary configuration
+  cloudinaryCloudName: z.string().trim().max(100).default(""),
+  cloudinaryApiKey: z.string().trim().max(100).default(""),
+  cloudinaryApiSecret: z.string().trim().max(100).default(""),
   // Social media URLs (empty = hidden)
   facebookUrl: z.string().trim().max(500).default(""),
   instagramUrl: z.string().trim().max(500).default(""),
@@ -169,6 +173,27 @@ export const SlideSchema = z.strictObject({
   order: z.number().int().default(0),
 });
 
+// File path — same as imagePath but for documents
+const filePath = z
+  .string()
+  .trim()
+  .min(1, "Required")
+  .max(1000)
+  .regex(
+    /^(\/[a-zA-Z0-9._\-\/]+|https:\/\/[a-zA-Z0-9.\-]+\/[a-zA-Z0-9._\-\/,%]+(\?[a-zA-Z0-9._\-=&,%\/]+)?)$/,
+    "Must be a relative path or https URL"
+  );
+
+export const DownloadSchema = z.strictObject({
+  name: cleanText(200),
+  description: z.string().trim().max(500).default(""),
+  url: filePath,
+  fileType: cleanText(20),
+  fileSize: z.number().int().min(0).default(0),
+  published: z.boolean().default(true),
+  order: z.number().int().default(0),
+});
+
 // Login schema
 export const LoginSchema = z.strictObject({
   email: z.string().email("Invalid email").max(100),
@@ -186,6 +211,7 @@ export type NewsItemInput = z.infer<typeof NewsItemSchema>;
 export type AdmissionStepInput = z.infer<typeof AdmissionStepSchema>;
 export type FaqInput = z.infer<typeof FaqSchema>;
 export type CampusItemInput = z.infer<typeof CampusItemSchema>;
+export type DownloadInput = z.infer<typeof DownloadSchema>;
 
 // ============ Secrets ============
 

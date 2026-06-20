@@ -15,7 +15,8 @@ import {
   Twitter,
   Loader2,
 } from "lucide-react";
-import type { SiteSettings } from "@prisma/client";
+import type { SiteSettings, Download } from "@prisma/client";
+import { Download as DownloadIcon } from "lucide-react";
 import { ApplyButton } from "./apply-button";
 import { BotDefense, type BotDefenseTokens } from "./bot-defense";
 import { LanguageSwitcher } from "./language-switcher";
@@ -40,7 +41,7 @@ const PROGRAMS_LINKS = [
   { label: "Sports Academy", href: "#campus-life" },
 ];
 
-export function Footer({ settings }: { settings: SiteSettings | null }) {
+export function Footer({ settings, downloads = [] }: { settings: SiteSettings | null; downloads?: Download[] }) {
   const t = useTranslations("footer");
   const crest = settings?.crestUrl || "/crest/school-crest.png";
   const tagline = settings?.tagline || "";
@@ -214,6 +215,33 @@ export function Footer({ settings }: { settings: SiteSettings | null }) {
               </ul>
             ) : (
               <p className="mt-5 text-sm text-white/40 italic">Coming soon</p>
+            )}
+
+            {downloads.length > 0 && (
+              <div className="mt-6">
+                <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--orange-light)]">
+                  Downloads
+                </h5>
+                <ul className="mt-3 space-y-2">
+                  {downloads.map((dl) => (
+                    <li key={dl.id}>
+                      <a
+                        href={dl.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-white/65 hover:text-[var(--orange-light)] hover:translate-x-1 inline-flex items-center gap-1.5 transition-all"
+                      >
+                        <DownloadIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{dl.name}</span>
+                        <span className="text-[10px] text-white/40 uppercase">{dl.fileType}</span>
+                      </a>
+                      {dl.description && (
+                        <p className="text-[11px] text-white/35 ml-5">{dl.description}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <div className="mt-6">

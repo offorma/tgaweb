@@ -4,6 +4,7 @@ import { adminHandler, parseJsonBody } from "@/lib/admin-api";
 import { invalidateCache, getSiteSettings } from "@/lib/content";
 import { db } from "@/lib/db";
 import { SiteSettingsSchema } from "@/lib/validations/site";
+import { resetCloudinaryConfig } from "@/lib/cloudinary";
 
 // GET — current settings (allowed for EDITOR — read-only)
 export const GET = adminHandler(async () => {
@@ -28,5 +29,6 @@ export const PUT = adminHandler(async (req) => {
     data: parsed.data,
   });
   invalidateCache("settings");
+  resetCloudinaryConfig();
   return NextResponse.json({ settings: updated });
 }, { method: "PUT", requiredRole: "ADMIN" });

@@ -11,6 +11,7 @@ import type {
   Faq,
   CampusItem,
   Slide,
+  Download,
 } from "@prisma/client";
 
 /**
@@ -142,4 +143,15 @@ export async function getActiveSlides(): Promise<Slide[]> {
 
 export async function getAllSlides(): Promise<Slide[]> {
   return db.slide.findMany({ orderBy: { order: "asc" } });
+}
+
+// ====== Downloads ======
+
+export async function getPublishedDownloads(): Promise<Download[]> {
+  return cached("downloads", () =>
+    db.download.findMany({
+      where: { published: true },
+      orderBy: { order: "asc" },
+    })
+  );
 }
