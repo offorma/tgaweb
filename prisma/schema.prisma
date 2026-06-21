@@ -3,12 +3,11 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // Only the two targets we actually need: "native" for the GitHub Actions
-  // runner's build, and "debian-openssl-1.1.x" for the cPanel server (OpenSSL
-  // 1.1.1k). Dropping the unused targets removes ~150MB of engine binaries from
-  // the deploy tarball — the main cause of flaky extraction on the
-  // quota-limited shared account.
-  binaryTargets = ["native", "debian-openssl-1.1.x"]
+  // "native" builds the runner's client; the cPanel server's Prisma runtime
+  // resolves to debian-openssl-1.0.x (confirmed from the runtime engine-not-found
+  // error — `openssl version` reports 1.1.1k but Prisma detects 1.0.x). We bundle
+  // 1.0.x (the one the app actually loads) plus 1.1.x as a safety net.
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {

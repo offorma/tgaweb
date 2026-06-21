@@ -39,22 +39,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The cPanel server runs OpenSSL 1.1.x → it needs the debian-openssl-1.1.x
-      # SCHEMA engine for the on-server `db push`. See deploy.yml for details.
-      - name: Generate Prisma client + bundle schema engine
-        env:
-          # Server is OpenSSL 1.1.x; the CLI auto-fetches its own native (CI) engine.
-          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x
-        run: |
-          npx prisma generate
-          npx prisma migrate diff --from-empty \
-            --to-schema-datamodel prisma/schema.prisma --script >/dev/null 2>&1 || true
-          echo "Engines in node_modules/@prisma/engines:"
-          ls -1 node_modules/@prisma/engines/ | grep -iE 'schema-engine|libquery' || true
-          if ! ls node_modules/@prisma/engines/schema-engine-debian-openssl-1.1.x >/dev/null 2>&1; then
-            echo "::error title=Schema engine missing::schema-engine-debian-openssl-1.1.x was not fetched — staging (OpenSSL 1.1) cannot run 'prisma db push'. Aborting build."
-            exit 1
-          fi
+      # Generate the runtime client + query engines (incl. debian-openssl-1.0.x for
+      # the server). Schema is pushed from the runner via SSH tunnel — the server
+      # never runs Prisma. See deploy.yml for details.
+      - name: Generate Prisma client
+        run: npx prisma generate
 
       - name: Build
         id: build
@@ -78,19 +67,16 @@ jobs:
           [ -f package-lock.json ] && cp package-lock.json deploy-payload/app/ || true
           [ -f bun.lock ] && cp bun.lock deploy-payload/app/ || true
           [ -f run.sh ] && cp run.sh deploy-payload/app/ && chmod +x deploy-payload/app/run.sh || true
-          # Bundle Prisma client + engine binaries (avoids needing prisma CLI on cPanel).
-          # MERGE into the dirs the Next standalone already created (trailing '/.') —
-          # `cp -r src dest` nests when dest exists, hiding @prisma/engines from the CLI.
+          # Runtime client + query engine only — the server never runs the Prisma CLI
+          # (schema is pushed from the runner via SSH tunnel). MERGE with trailing '/.'.
           mkdir -p deploy-payload/app/node_modules/@prisma deploy-payload/app/node_modules/.prisma
-          cp -r node_modules/@prisma/. deploy-payload/app/node_modules/@prisma/
+          cp -r node_modules/@prisma/client/. deploy-payload/app/node_modules/@prisma/client/ 2>/dev/null || true
           cp -r node_modules/.prisma/.  deploy-payload/app/node_modules/.prisma/
-          cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
           cp -r node_modules/bcryptjs deploy-payload/app/node_modules/bcryptjs
-          if [ ! -f deploy-payload/app/node_modules/@prisma/engines/package.json ]; then
-            echo "::error title=Bad Prisma bundle::@prisma/engines is not at node_modules/@prisma/engines (nesting?)."
+          if ! ls deploy-payload/app/node_modules/.prisma/client/libquery_engine-debian-openssl-1.0.x.so.node >/dev/null 2>&1; then
+            echo "::error title=Runtime engine missing::libquery_engine-debian-openssl-1.0.x not bundled — check binaryTargets."
             exit 1
           fi
-          # NOTE: do NOT exclude node_modules/prisma/build — the Prisma CLI lives there.
           tar -czf deploy-payload.tar.gz \
             -C deploy-payload/app .
 
@@ -107,6 +93,16 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      # Checkout + node so the runner can push the DB schema with its own Prisma
+      # over an SSH tunnel — staging's server never runs Prisma.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
       - uses: actions/download-artifact@v4
         with:
           name: staging-payload
@@ -233,17 +229,22 @@ jobs:
             echo \"Static files copied to \$PUBLIC_HTML\"
           "
 
-      - name: Push database schema to staging
+      - name: Push database schema to staging (from runner via SSH tunnel)
         if: vars.STAGING_ENABLED == 'true'
         run: |
-          # Use the bundled Prisma CLI directly (no npx/network on the server).
-          ssh staging "
-            export PATH=${{ env.NODE_BIN }}:\$PATH
-            cd '${{ secrets.STAGING_CPANEL_PATH }}'
-            export DATABASE_URL='${{ secrets.STAGING_DATABASE_URL }}'
-            node node_modules/prisma/build/index.js db push --accept-data-loss --skip-generate
-            echo 'Staging database schema pushed'
-          " || { echo '::error title=Staging DB schema push failed::prisma db push failed on staging — schema is NOT up to date (see logs above).'; exit 1; }
+          # Push from the runner's Prisma over an SSH tunnel — staging never runs Prisma.
+          set -e
+          PROD_URL='${{ secrets.STAGING_DATABASE_URL }}'
+          DBHOST=$(node -e "process.stdout.write(new URL(process.env.U).hostname)" U="$PROD_URL")
+          DBPORT=$(node -e "const u=new URL(process.env.U);process.stdout.write(u.port||'5432')" U="$PROD_URL")
+          ssh -fN -o ExitOnForwardFailure=yes -L 5433:"$DBHOST":"$DBPORT" staging
+          TUNNEL_URL=$(node -e "const u=new URL(process.env.U);u.hostname='127.0.0.1';u.port='5433';process.stdout.write(u.toString())" U="$PROD_URL")
+          if DATABASE_URL="$TUNNEL_URL" npx prisma db push --skip-generate --accept-data-loss; then
+            echo 'Staging database schema pushed via SSH tunnel'
+          else
+            echo '::error title=Staging DB schema push failed::prisma db push (via SSH tunnel) failed — schema is NOT up to date.'
+            exit 1
+          fi
 
       - name: Run post-deploy script
         timeout-minutes: 15

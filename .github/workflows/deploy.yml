@@ -43,26 +43,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The cPanel server runs OpenSSL 1.1.1k → it needs debian-openssl-1.1.x
-      # engines. `prisma generate` only fetches the QUERY engine; force the
-      # SCHEMA engine (used by the on-server `db push`) to download for this
-      # target too, otherwise the schema is silently never applied and the app
-      # 500s on missing tables.
-      - name: Generate Prisma client + bundle schema engine
-        env:
-          # Server is OpenSSL 1.1.x; the CLI auto-fetches its own native (CI) engine.
-          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x
-        run: |
-          npx prisma generate
-          # Exercise the schema engine so the CLI downloads it for the targets above.
-          npx prisma migrate diff --from-empty \
-            --to-schema-datamodel prisma/schema.prisma --script >/dev/null 2>&1 || true
-          echo "Engines in node_modules/@prisma/engines:"
-          ls -1 node_modules/@prisma/engines/ | grep -iE 'schema-engine|libquery' || true
-          if ! ls node_modules/@prisma/engines/schema-engine-debian-openssl-1.1.x >/dev/null 2>&1; then
-            echo "::error title=Schema engine missing::schema-engine-debian-openssl-1.1.x was not fetched — the cPanel server (OpenSSL 1.1) cannot run 'prisma db push'. Aborting build."
-            exit 1
-          fi
+      # Generate the runtime client + query engines for the bundled binaryTargets
+      # (incl. the server's debian-openssl-1.0.x). The schema is pushed from the
+      # runner via SSH tunnel (see the deploy job) — the server never runs Prisma.
+      - name: Generate Prisma client
+        run: npx prisma generate
 
       - name: Build
         id: build
@@ -88,29 +73,22 @@ jobs:
           [ -f run.sh ] && cp run.sh deploy-payload/app/ && chmod +x deploy-payload/app/run.sh || true
 
       - name: Create deploy tarball
-        # Include node_modules/@prisma so the runtime Prisma Client + engine
-        # binaries are available on cPanel (avoids needing prisma CLI there).
+        # The server only needs the RUNTIME Prisma client + query engine — it never
+        # runs the Prisma CLI (schema is pushed from the runner via SSH tunnel).
         run: |
           mkdir -p deploy-payload/app/node_modules
-          # IMPORTANT: the Next standalone build (copied above) already created
-          # node_modules/@prisma (and .prisma) for the runtime client. Copy with a
-          # trailing '/.' to MERGE contents into those dirs — `cp -r src dest` when
-          # dest exists nests it (dest/@prisma/@prisma), hiding @prisma/engines from
-          # the CLI and duplicating ~200MB of engine binaries.
+          # The Next standalone (copied above) already created node_modules/@prisma
+          # and node_modules/.prisma for the runtime client. MERGE into them with a
+          # trailing '/.' — `cp -r src dest` nests when dest exists (dest/@prisma/@prisma).
           mkdir -p deploy-payload/app/node_modules/@prisma deploy-payload/app/node_modules/.prisma
-          cp -r node_modules/@prisma/. deploy-payload/app/node_modules/@prisma/
+          cp -r node_modules/@prisma/client/. deploy-payload/app/node_modules/@prisma/client/ 2>/dev/null || true
           cp -r node_modules/.prisma/.  deploy-payload/app/node_modules/.prisma/
-          cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
           cp -r node_modules/bcryptjs deploy-payload/app/node_modules/bcryptjs
-          # Sanity-check: the CLI must be able to resolve @prisma/engines (no nesting)
-          if [ ! -f deploy-payload/app/node_modules/@prisma/engines/package.json ]; then
-            echo "::error title=Bad Prisma bundle::@prisma/engines is not at node_modules/@prisma/engines (nesting?). The on-server CLI would crash."
+          # Sanity-check: the server's runtime query engine must be bundled.
+          if ! ls deploy-payload/app/node_modules/.prisma/client/libquery_engine-debian-openssl-1.0.x.so.node >/dev/null 2>&1; then
+            echo "::error title=Runtime engine missing::libquery_engine-debian-openssl-1.0.x not bundled — the app will 500. Check binaryTargets in schema.prisma."
             exit 1
           fi
-          ls deploy-payload/app/node_modules/@prisma/engines/schema-engine-debian-openssl-1.1.x >/dev/null 2>&1 \
-            || echo "::warning title=Engine target::schema-engine-debian-openssl-1.1.x not bundled — the cPanel server (OpenSSL 1.1) may fail db push."
-          # NOTE: do NOT exclude node_modules/prisma/build — the Prisma CLI lives
-          # there and the on-server `prisma db push` needs it.
           tar -czf deploy-payload.tar.gz \
             -C deploy-payload/app .
 
@@ -126,6 +104,16 @@ jobs:
     if: always() && needs.test.result == 'success' && (needs.build.result == 'success' || inputs.skip_build)
     runs-on: ubuntu-latest
     steps:
+      # Checkout + node so the runner can push the DB schema with its own
+      # (complete, correct) Prisma over an SSH tunnel — the server never runs Prisma.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
       - uses: actions/download-artifact@v4
         with:
           name: deploy-payload
@@ -269,18 +257,23 @@ jobs:
             echo \"Static files copied to \$PUBLIC_HTML\"
           "
 
-      - name: Push database schema
+      - name: Push database schema (from runner via SSH tunnel)
         run: |
-          # Run the bundled Prisma CLI directly (node_modules/prisma/build) — the
-          # server has no network for `npx` to fetch Prisma, and the schema engine
-          # is now bundled in the tarball.
-          ssh cpanel "
-            export PATH=${{ env.NODE_BIN }}:\$PATH
-            cd '${{ secrets.CPANEL_PATH }}'
-            export DATABASE_URL='${{ secrets.PROD_DATABASE_URL }}'
-            node node_modules/prisma/build/index.js db push --accept-data-loss --skip-generate
-            echo 'Database schema pushed'
-          " || { echo '::error title=DB schema push failed::prisma db push failed on the server — the database schema is NOT up to date. The app will 500 on missing tables. See logs above.'; exit 1; }
+          # The runner has a complete, working Prisma; the cPanel server does not.
+          # Forward runner:5433 -> the prod Postgres (reachable only from the server),
+          # then push the schema from here. The server never runs Prisma.
+          set -e
+          PROD_URL='${{ secrets.PROD_DATABASE_URL }}'
+          DBHOST=$(node -e "process.stdout.write(new URL(process.env.U).hostname)" U="$PROD_URL")
+          DBPORT=$(node -e "const u=new URL(process.env.U);process.stdout.write(u.port||'5432')" U="$PROD_URL")
+          ssh -fN -o ExitOnForwardFailure=yes -L 5433:"$DBHOST":"$DBPORT" cpanel
+          TUNNEL_URL=$(node -e "const u=new URL(process.env.U);u.hostname='127.0.0.1';u.port='5433';process.stdout.write(u.toString())" U="$PROD_URL")
+          if DATABASE_URL="$TUNNEL_URL" npx prisma db push --skip-generate --accept-data-loss; then
+            echo 'Database schema pushed via SSH tunnel'
+          else
+            echo '::error title=DB schema push failed::prisma db push (via SSH tunnel) failed — the schema is NOT up to date. The app will 500 on missing tables.'
+            exit 1
+          fi
 
       - name: Run post-deploy script
         timeout-minutes: 15
