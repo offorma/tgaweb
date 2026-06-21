@@ -173,7 +173,14 @@ jobs:
 
       - name: Extract & swap release (staged — live app stays up if extract fails)
         run: |
-          ssh cpanel "
+          # Retry at the SSH-SESSION level: the cPanel account's CloudLinux LVE
+          # resource limit can kill the session mid-extract (exit 255). Stage-then-swap
+          # means a killed attempt never touches the live app, so retrying is safe.
+          set +e
+          ok=0
+          for ssh_attempt in 1 2 3 4 5; do
+            echo "── Extract attempt $ssh_attempt ──"
+            ssh cpanel "
             DEPLOY_PATH='${{ secrets.CPANEL_PATH }}'
             cd \$DEPLOY_PATH || exit 1
             TARBALL=deploy-payload.tar.gz
@@ -236,8 +243,16 @@ jobs:
             rm -rf \$NEW \$OLD
             rm -f \$TARBALL
             echo 'Release swapped in (preserved: .env, backups, logs, uploads, tmp, wrapper-server.js)'
-            ls -d node_modules/@prisma/engines >/dev/null 2>&1 && echo '@prisma/engines present ✓' || echo 'WARN: @prisma/engines missing'
-          "
+            "
+            rc=$?
+            [ $rc -eq 0 ] && { ok=1; break; }
+            echo "Extract SSH exited $rc — cPanel resource limit likely killed the session; retrying in 20s..."
+            sleep 20
+          done
+          if [ $ok -ne 1 ]; then
+            echo "::error title=Extract failed::SSH session killed repeatedly (cPanel LVE resource limit) during extraction. The live app was left untouched — prod is unaffected."
+            exit 1
+          fi
 
       - name: Copy static files to public_html
         run: |

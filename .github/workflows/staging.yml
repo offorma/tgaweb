@@ -161,7 +161,12 @@ jobs:
           # Stage-then-swap: extract to a staging dir and atomically swap in, so a
           # failed extraction never takes down the live app. .env/backups/logs/
           # uploads/tmp/wrapper-server.js are preserved by never touching them.
-          ssh staging "
+          # Retry at the SSH-session level (LVE resource limits can kill it: exit 255).
+          set +e
+          ok=0
+          for ssh_attempt in 1 2 3 4 5; do
+            echo "── Staging extract attempt $ssh_attempt ──"
+            ssh staging "
             DEPLOY_PATH='${STAGING_PATH}'
             cd \$DEPLOY_PATH || exit 1
             TARBALL=deploy-payload.tar.gz
@@ -209,7 +214,13 @@ jobs:
             fi
             rm -rf \$NEW \$OLD; rm -f \$TARBALL
             echo 'Staging release swapped in'
-          "
+            "
+            rc=$?
+            [ $rc -eq 0 ] && { ok=1; break; }
+            echo "Staging extract SSH exited $rc — resource limit likely killed the session; retrying in 20s..."
+            sleep 20
+          done
+          [ $ok -eq 1 ] || { echo "::error title=Staging extract failed::SSH session killed repeatedly (LVE resource limit). Live app untouched."; exit 1; }
 
       - name: Copy static files to public_html
         run: |
