@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { hashPassword, writeAuditLog } from "@/lib/auth-utils";
 import { UserCreateSchema } from "@/lib/validations/site";
 import { getClientIp } from "@/lib/rate-limit";
+import { sendWelcomeEmail } from "@/lib/email";
 
 /**
  * GET /api/admin/users
@@ -128,6 +129,20 @@ export const POST = adminHandler(async (req, user) => {
       requirePasswordChange: parsed.data.requirePasswordChange,
     }),
   });
+
+  // Send a branded welcome email to the new user (best-effort, fails soft).
+  try {
+    await sendWelcomeEmail({
+      to: created.email,
+      name: created.name,
+      email: created.email,
+      role: created.role,
+      mustChangePassword: parsed.data.requirePasswordChange,
+      requireTwoFactor: parsed.data.requireTwoFactor,
+    });
+  } catch (e: any) {
+    console.error("[user.create] welcome email failed:", e?.message);
+  }
 
   return NextResponse.json({ user: created }, { status: 201 });
 }, { method: "POST", requiredRole: "ADMIN" });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { ArrowUpRight, Calendar } from "lucide-react";
@@ -63,38 +64,42 @@ export function News({ news }: { news: NewsItem[] }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="group bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 border border-black/5"
             >
-              <div className="relative aspect-[16/10] overflow-hidden">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[var(--navy)]/60 to-transparent" />
+              <Link
+                href={`/news/${item.slug}`}
+                className="group bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 border border-black/5 flex flex-col"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--navy)]/60 to-transparent" />
 
-                <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider text-[var(--navy)]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
-                  {item.tag}
+                  <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider text-[var(--navy)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--orange)]" />
+                    {item.tag}
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 flex items-center gap-1.5 text-white text-xs">
+                    <Calendar className="h-3 w-3" />
+                    {formatDate(item.date)}
+                  </div>
                 </div>
 
-                <div className="absolute bottom-4 left-4 flex items-center gap-1.5 text-white text-xs">
-                  <Calendar className="h-3 w-3" />
-                  {formatDate(item.date)}
+                <div className="p-6">
+                  <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--orange-dark)]">
+                    {item.category}
+                  </div>
+                  <h3 className="mt-2 font-serif text-xl font-bold text-[var(--navy)] leading-snug group-hover:text-[var(--orange-dark)] transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2.5 text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                    {item.excerpt}
+                  </p>
                 </div>
-              </div>
-
-              <div className="p-6">
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--orange-dark)]">
-                  {item.category}
-                </div>
-                <h3 className="mt-2 font-serif text-xl font-bold text-[var(--navy)] leading-snug group-hover:text-[var(--orange-dark)] transition-colors">
-                  {item.title}
-                </h3>
-                <p className="mt-2.5 text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                  {item.excerpt}
-                </p>
-              </div>
+              </Link>
             </motion.article>
           ))}
         </div>

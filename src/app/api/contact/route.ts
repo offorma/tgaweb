@@ -4,9 +4,8 @@ import { z } from "zod";
 import { rateLimitByIp, getClientIp } from "@/lib/rate-limit";
 import { writeAuditLog } from "@/lib/auth-utils";
 import { db } from "@/lib/db";
-import { getSecretValues } from "@/lib/secrets-data";
-import { isMasterKeyConfigured } from "@/lib/secrets";
 import { verifyBotDefense, isBotUserAgent } from "@/lib/bot-defense";
+import { sendContactNotificationEmail, sendContactAutoReplyEmail } from "@/lib/email";
 
 const Schema = z.object({
   firstName: z.string().trim().min(1).max(80),
@@ -102,58 +101,37 @@ export async function POST(req: NextRequest) {
     }),
   });
 
-  // 6) Attempt to send email via SMTP if secrets are configured
+  // 6) Send the branded notification to the school inbox, plus an auto-reply to the
+  //    sender. Both fail soft (return { sent:false } if SMTP isn't configured).
   let emailSent = false;
 
-  if (isMasterKeyConfigured()) {
+  try {
+    const notify = await sendContactNotificationEmail({
+      to: toEmail,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      phone: body.phone || undefined,
+      subject: body.subject,
+      message: body.message,
+      ip: ip || undefined,
+    });
+    emailSent = notify.sent;
+  } catch (e: any) {
+    console.error("[contact-form] notification send failed:", e?.message);
+  }
+
+  // Auto-reply confirmation to the person who wrote in (best-effort).
+  if (emailSent) {
     try {
-      const smtp = await getSecretValues([
-        "SMTP_HOST",
-        "SMTP_PORT",
-        "SMTP_USER",
-        "SMTP_PASSWORD",
-        "SMTP_FROM",
-      ]);
-
-      if (smtp.SMTP_HOST && smtp.SMTP_USER && smtp.SMTP_PASSWORD) {
-        const nodemailer = await import("nodemailer").catch(() => null);
-        if (nodemailer) {
-          const port = parseInt(smtp.SMTP_PORT || "587", 10);
-          const transporter = nodemailer.createTransport({
-            host: smtp.SMTP_HOST,
-            port,
-            secure: port === 465,
-            auth: { user: smtp.SMTP_USER, pass: smtp.SMTP_PASSWORD },
-            connectionTimeout: 15000,
-            greetingTimeout: 15000,
-            socketTimeout: 15000,
-          });
-
-          await transporter.sendMail({
-            from: smtp.SMTP_FROM || smtp.SMTP_USER,
-            to: toEmail,
-            replyTo: body.email,
-            subject: `[Contact Form] ${body.subject}`,
-            text: `New contact form submission from ${body.firstName} ${body.lastName}
-
-Email: ${body.email}
-Phone: ${body.phone || "(not provided)"}
-Subject: ${body.subject}
-
-Message:
-${body.message}
-
----
-Submitted from trailgliders.edu.ng
-IP: ${ip || "unknown"}`,
-          });
-
-          await transporter.close();
-          emailSent = true;
-        }
-      }
+      await sendContactAutoReplyEmail({
+        to: body.email,
+        firstName: body.firstName,
+        subject: body.subject,
+        message: body.message,
+      });
     } catch (e: any) {
-      console.error("[contact-form] SMTP send failed:", e?.message);
+      console.error("[contact-form] auto-reply send failed:", e?.message);
     }
   }
 

@@ -43,8 +43,8 @@ export default function AdminDownloadsPage() {
         }}
         renderCard={(item) => ({
           title: item.name,
-          subtitle: item.description || `${item.fileType.toUpperCase()}${item.fileSize ? ` • ${formatFileSize(item.fileSize)}` : ""}`,
-          badge: item.published ? item.fileType.toUpperCase() : "Draft",
+          subtitle: item.description || `${(item.fileType || "file").toUpperCase()}${item.fileSize ? ` • ${formatFileSize(item.fileSize)}` : ""}`,
+          badge: item.published ? (item.fileType || "file").toUpperCase() : "Draft",
         })}
       />
     </>

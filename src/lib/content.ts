@@ -73,12 +73,20 @@ export async function getPrograms(): Promise<Program[]> {
   );
 }
 
+export async function getProgramBySlug(slug: string): Promise<Program | null> {
+  return db.program.findUnique({ where: { slug } });
+}
+
 // ====== Faculty ======
 
 export async function getFaculty(): Promise<Faculty[]> {
   return cached("faculty", () =>
     db.faculty.findMany({ orderBy: { order: "asc" } })
   );
+}
+
+export async function getFacultyBySlug(slug: string): Promise<Faculty | null> {
+  return db.faculty.findUnique({ where: { slug } });
 }
 
 // ====== Testimonials ======
@@ -98,6 +106,10 @@ export async function getPublishedNews(): Promise<NewsItem[]> {
       orderBy: [{ order: "asc" }, { date: "desc" }],
     })
   );
+}
+
+export async function getNewsItemBySlug(slug: string): Promise<NewsItem | null> {
+  return db.newsItem.findUnique({ where: { slug } });
 }
 
 export async function getAllNews(): Promise<NewsItem[]> {

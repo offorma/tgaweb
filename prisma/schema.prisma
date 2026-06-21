@@ -119,10 +119,6 @@ model SiteSettings {
   instagramUrl             String   @default("")
   youtubeUrl               String   @default("")
   twitterUrl               String   @default("")
-  // Cloudinary configuration
-  cloudinaryCloudName      String   @default("")
-  cloudinaryApiKey         String   @default("")
-  cloudinaryApiSecret      String   @default("")
   // Footer "Resources" links (empty string = hide the link)
   resourceAdmissionsPortal String   @default("")
   resourceFeeStructure     String   @default("")

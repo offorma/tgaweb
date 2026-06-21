@@ -5,8 +5,7 @@ import { rateLimitByIp, getClientIp } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { writeAuditLog } from "@/lib/auth-utils";
 import { generateResetToken } from "@/lib/two-factor";
-import { getSecretValues } from "@/lib/secrets-data";
-import { isMasterKeyConfigured } from "@/lib/secrets";
+import { sendPasswordResetEmail } from "@/lib/email";
 
 const Schema = z.object({
   email: z.string().email().max(120),
@@ -79,60 +78,17 @@ export async function POST(req: NextRequest) {
       meta: email,
     });
 
-    // Attempt to send the reset email via SMTP if configured
-    if (isMasterKeyConfigured()) {
-      try {
-        const smtp = await getSecretValues([
-          "SMTP_HOST",
-          "SMTP_PORT",
-          "SMTP_USER",
-          "SMTP_PASSWORD",
-          "SMTP_FROM",
-        ]);
-        if (smtp.SMTP_HOST && smtp.SMTP_USER && smtp.SMTP_PASSWORD) {
-          const nodemailer = await import("nodemailer").catch(() => null);
-          if (nodemailer) {
-            const port = parseInt(smtp.SMTP_PORT || "587", 10);
-            const transporter = nodemailer.createTransport({
-              host: smtp.SMTP_HOST,
-              port,
-              secure: port === 465,
-              auth: { user: smtp.SMTP_USER, pass: smtp.SMTP_PASSWORD },
-            });
-            await transporter.sendMail({
-              from: smtp.SMTP_FROM || smtp.SMTP_USER,
-              to: email,
-              subject: "Reset your Trail Gliders Academy admin password",
-              text: `Hello ${user.name},
-
-A password reset was requested for your Trail Gliders Academy admin account.
-
-Reset link (valid for 1 hour):
-${resetLink}
-
-If you did NOT request this reset, you can safely ignore this email — your password remains unchanged and your account is secure.
-
-For your security, this link can only be used once.
-
-— Trail Gliders Academy`,
-              html: `
-<p>Hello ${user.name},</p>
-<p>A password reset was requested for your Trail Gliders Academy admin account.</p>
-<p style="margin: 24px 0;">
-  <a href="${resetLink}" style="display:inline-block;background:#FF6B1A;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:600;">Reset my password</a>
-</p>
-<p style="color:#666;font-size:13px;">Or copy this link: <br><code>${resetLink}</code></p>
-<p>The link is valid for <strong>1 hour</strong> and can only be used once.</p>
-<p>If you did NOT request this reset, you can safely ignore this email — your password remains unchanged.</p>
-<p>— Trail Gliders Academy</p>`,
-            });
-            await transporter.close();
-          }
-        }
-      } catch (e: any) {
-        console.error("[forgot-password] SMTP send failed:", e?.message);
-        // Don't expose the failure to the user — still return generic success
-      }
+    // Attempt to send the branded reset email (fails soft if SMTP isn't configured)
+    try {
+      await sendPasswordResetEmail({
+        to: email,
+        name: user.name,
+        resetLink,
+        expiresInLabel: "1 hour",
+      });
+    } catch (e: any) {
+      console.error("[forgot-password] email send failed:", e?.message);
+      // Don't expose the failure to the user — still return generic success
     }
 
     // Log the reset link in dev mode (so the dev can complete the flow without SMTP)

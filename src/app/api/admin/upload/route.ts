@@ -23,6 +23,22 @@ const DOCUMENT_TYPES = [
   "text/plain",
 ];
 
+const MIME_TO_EXT: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "text/plain": "txt",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
+
 const ALLOWED_TYPES = [...IMAGE_TYPES, ...DOCUMENT_TYPES];
 
 export const POST = adminHandler(
@@ -64,7 +80,7 @@ export const POST = adminHandler(
     return NextResponse.json({
       url: result.secure_url,
       publicId: result.public_id,
-      fileType: result.format || file.type.split("/").pop(),
+      fileType: result.format || MIME_TO_EXT[file.type] || "file",
       fileSize: result.bytes,
     });
   },

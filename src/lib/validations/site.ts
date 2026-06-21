@@ -58,10 +58,6 @@ export const SiteSettingsSchema = z.strictObject({
   applyButtonType: z.enum(["scroll", "external", "mailto"]).default("scroll"),
   applyButtonUrl: cleanText(500),
   applyButtonStyle: z.enum(["primary", "outline"]).default("primary"),
-  // Cloudinary configuration
-  cloudinaryCloudName: z.string().trim().max(100).default(""),
-  cloudinaryApiKey: z.string().trim().max(100).default(""),
-  cloudinaryApiSecret: z.string().trim().max(100).default(""),
   // Social media URLs (empty = hidden)
   facebookUrl: z.string().trim().max(500).default(""),
   instagramUrl: z.string().trim().max(500).default(""),

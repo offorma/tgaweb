@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Phone, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,17 @@ export function Navbar({ settings }: { settings: SiteSettings | null }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const pathname = usePathname();
+
+  // Map sub-page path prefixes to their parent nav section
+  const PATH_SECTION_MAP: Record<string, string> = {
+    "/news/": "news",
+    "/faculty/": "faculty",
+    "/academics/": "academics",
+  };
+  const sectionFromPath = Object.entries(PATH_SECTION_MAP).find(([prefix]) =>
+    pathname.startsWith(prefix)
+  )?.[1] ?? null;
 
   const crest = settings?.crestUrl || "/crest/school-crest.png";
   const phone = settings?.phone || "";
@@ -142,7 +154,10 @@ export function Navbar({ settings }: { settings: SiteSettings | null }) {
 
           <div className="hidden lg:flex items-center gap-1">
             {NAV_LINKS.map((link) => {
-              const isActive = activeSection === link.href.slice(1);
+              const section = link.href.slice(1);
+              const isActive = sectionFromPath
+                ? sectionFromPath === section
+                : activeSection === section;
               return (
                 <button
                   key={link.href}

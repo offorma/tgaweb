@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Quote } from "lucide-react";
@@ -55,37 +56,41 @@ export function Faculty({ faculty }: { faculty: Faculty[] }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="group relative bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 border border-black/5"
             >
-              <div className="relative aspect-[4/5] overflow-hidden">
-                <img
-                  src={member.image}
-                  alt={member.name}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[var(--navy-dark)] via-[var(--navy-dark)]/30 to-transparent opacity-90" />
+              <Link
+                href={`/faculty/${member.slug}`}
+                className="group relative bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 border border-black/5 flex flex-col"
+              >
+                <div className="relative aspect-[4/5] overflow-hidden">
+                  <img
+                    src={member.image}
+                    alt={member.name}
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--navy-dark)] via-[var(--navy-dark)]/30 to-transparent opacity-90" />
 
-                <div className="absolute inset-x-0 bottom-0 p-5 transform transition-transform duration-500 translate-y-2 group-hover:translate-y-0">
-                  <Quote className="h-5 w-5 text-[var(--orange)] mb-2 fill-[var(--orange)]" />
-                  <p className="text-white/95 text-xs italic leading-relaxed line-clamp-3">
-                    "{member.quote}"
+                  <div className="absolute inset-x-0 bottom-0 p-5 transform transition-transform duration-500 translate-y-2 group-hover:translate-y-0">
+                    <Quote className="h-5 w-5 text-[var(--orange)] mb-2 fill-[var(--orange)]" />
+                    <p className="text-white/95 text-xs italic leading-relaxed line-clamp-3">
+                      "{member.quote}"
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--orange-dark)]">
+                    {member.role}
+                  </div>
+                  <h3 className="mt-1.5 font-serif text-lg font-bold text-[var(--navy)] leading-tight">
+                    {member.name}
+                  </h3>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                    {member.bio}
                   </p>
                 </div>
-              </div>
 
-              <div className="p-5">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--orange-dark)]">
-                  {member.role}
-                </div>
-                <h3 className="mt-1.5 font-serif text-lg font-bold text-[var(--navy)] leading-tight">
-                  {member.name}
-                </h3>
-                <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-3">
-                  {member.bio}
-                </p>
-              </div>
-
-              <div className="h-1 w-full bg-gradient-to-r from-[var(--orange)] to-[var(--gold)] transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
+                <div className="h-1 w-full bg-gradient-to-r from-[var(--orange)] to-[var(--gold)] transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left mt-auto" />
+              </Link>
             </motion.div>
           ))}
         </div>

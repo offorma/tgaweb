@@ -1,34 +1,28 @@
 import { v2 as cloudinary } from "cloudinary";
-import { db } from "@/lib/db";
-
-let configured = false;
+import { getSecretValue } from "@/lib/secrets-data";
 
 /**
  * Returns a configured Cloudinary instance.
- * Reads credentials from DB (SiteSettings), falling back to env vars for bootstrapping.
+ * Reads credentials from the Secrets vault (Admin > Secrets),
+ * falling back to environment variables for bootstrapping.
  */
 export async function getCloudinary() {
-  if (configured) return cloudinary;
-
-  const settings = await db.siteSettings.findUnique({
-    where: { id: "singleton" },
-    select: {
-      cloudinaryCloudName: true,
-      cloudinaryApiKey: true,
-      cloudinaryApiSecret: true,
-    },
-  });
-
   const cloudName =
-    settings?.cloudinaryCloudName || process.env.CLOUDINARY_CLOUD_NAME || "";
+    (await getSecretValue("CLOUDINARY_CLOUD_NAME")) ||
+    process.env.CLOUDINARY_CLOUD_NAME ||
+    "";
   const apiKey =
-    settings?.cloudinaryApiKey || process.env.CLOUDINARY_API_KEY || "";
+    (await getSecretValue("CLOUDINARY_API_KEY")) ||
+    process.env.CLOUDINARY_API_KEY ||
+    "";
   const apiSecret =
-    settings?.cloudinaryApiSecret || process.env.CLOUDINARY_API_SECRET || "";
+    (await getSecretValue("CLOUDINARY_API_SECRET")) ||
+    process.env.CLOUDINARY_API_SECRET ||
+    "";
 
   if (!cloudName || !apiKey || !apiSecret) {
     throw new Error(
-      "Cloudinary is not configured. Set credentials in Admin > Site Settings or via environment variables."
+      "Cloudinary is not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in Admin > Secrets."
     );
   }
 
@@ -38,16 +32,7 @@ export async function getCloudinary() {
     api_secret: apiSecret,
   });
 
-  configured = true;
   return cloudinary;
-}
-
-/**
- * Call this after Cloudinary settings are updated in admin
- * so the next request picks up new credentials.
- */
-export function resetCloudinaryConfig() {
-  configured = false;
 }
 
 export default cloudinary;

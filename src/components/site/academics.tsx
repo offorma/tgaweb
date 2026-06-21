@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
@@ -171,9 +172,13 @@ export function Academics({ programs }: { programs: Program[] }) {
               </div>
 
               <div className="mt-8 pt-6 border-t border-black/5 flex flex-wrap items-center justify-between gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Want to learn more about this program?
-                </div>
+                <Link
+                  href={`/academics/${program.slug}`}
+                  className={cn("text-sm font-semibold flex items-center gap-1 hover:underline", colors.text)}
+                >
+                  Learn more about this program
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
                 <Button
                   onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
                   className={cn(

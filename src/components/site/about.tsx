@@ -138,11 +138,11 @@ export function About({
             >
               <div className="flex items-start gap-4">
                 <div className="h-12 w-12 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="h-6 w-6 text-[var(--navy)]" />
+                  <Sparkles className="h-6 w-6 text-[var(--navy)]" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-[var(--navy)]">{t("missionTitle")}</h3>
-                  <p className="mt-2 text-muted-foreground leading-relaxed">{missionText}</p>
+                  <h3 className="font-serif text-2xl font-bold text-[var(--navy)]">{t("visionTitle")}</h3>
+                  <p className="mt-2 text-muted-foreground leading-relaxed">{visionText}</p>
                 </div>
               </div>
             </motion.div>
@@ -157,11 +157,11 @@ export function About({
               <div className="absolute -top-8 -right-8 h-40 w-40 rounded-full bg-[var(--orange)]/30 blur-3xl" />
               <div className="flex items-start gap-4 relative">
                 <div className="h-12 w-12 rounded-xl bg-[var(--orange)]/20 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="h-6 w-6 text-[var(--orange)]" />
+                  <BookOpen className="h-6 w-6 text-[var(--orange)]" />
                 </div>
                 <div>
-                  <h3 className="font-serif text-2xl font-bold">{t("visionTitle")}</h3>
-                  <p className="mt-2 text-white/85 leading-relaxed">{visionText}</p>
+                  <h3 className="font-serif text-2xl font-bold">{t("missionTitle")}</h3>
+                  <p className="mt-2 text-white/85 leading-relaxed">{missionText}</p>
                 </div>
               </div>
             </motion.div>
