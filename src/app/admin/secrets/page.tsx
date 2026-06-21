@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Wand2,
   Lock,
+  UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,6 +133,17 @@ const TEMPLATES = [
     secrets: [
       { key: "TURNSTILE_SITE_KEY", description: "Public site key (shown in browser) — get from Cloudflare dashboard" },
       { key: "TURNSTILE_SECRET_KEY", description: "Secret key (server-side only) — get from Cloudflare dashboard" },
+    ],
+  },
+  {
+    id: "cloudinary",
+    label: "Cloudinary (Image / File Storage)",
+    icon: UploadCloud,
+    color: "from-sky-500 to-indigo-700",
+    secrets: [
+      { key: "CLOUDINARY_CLOUD_NAME", description: "Your Cloudinary cloud name" },
+      { key: "CLOUDINARY_API_KEY", description: "Your Cloudinary API key" },
+      { key: "CLOUDINARY_API_SECRET", description: "Your Cloudinary API secret — keep confidential" },
     ],
   },
 ];
@@ -408,7 +420,7 @@ export default function AdminSecretsPage() {
                   key={tpl.id}
                   onClick={() => handleCreate({
                     key: tpl.secrets[0].key,
-                    category: tpl.id === "smtp" ? "email" : tpl.id === "app" ? "app" : "payment",
+                    category: tpl.id === "smtp" ? "email" : tpl.id === "app" ? "app" : tpl.id === "cloudinary" ? "storage" : "payment",
                     description: tpl.secrets[0].description,
                   })}
                   className="text-left p-4 rounded-2xl border border-black/5 hover:border-[var(--orange)]/30 hover:shadow-md transition-all bg-white"

@@ -402,6 +402,16 @@ describe("<AdminSecretsPage />", () => {
     cy.get("#category").should("have.value", "payment");
   });
 
+  it("starts the Cloudinary template (storage category)", () => {
+    stubLoad({ secrets: SECRETS, stats: stats() });
+    mountPage();
+    cy.wait("@load");
+    cy.contains("button", "Add from Template").click();
+    cy.contains("Cloudinary").click();
+    cy.get("#key").should("have.value", "CLOUDINARY_CLOUD_NAME");
+    cy.get("#category").should("have.value", "storage");
+  });
+
   it("starts the App Config template (app category)", () => {
     stubLoad({ secrets: SECRETS, stats: stats() });
     mountPage();
