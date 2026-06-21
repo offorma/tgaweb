@@ -197,6 +197,41 @@ else
   log "  DATABASE_URL is set (length: ${#DATABASE_URL})"
 fi
 
+# ─── STEP 3.5: Reap orphaned one-off scripts ───────────────────────────────
+# Housekeeping: stray seed/migrate/`node -e` one-liners occasionally hang for
+# hours, holding a DB connection and an LVE process slot — which later causes
+# `fork: Resource temporarily unavailable` and can starve the app. We reap ONLY
+# those long-lived one-off scripts, and NEVER the live Passenger app, systemd,
+# or this deploy shell. Best-effort (own user only) — run before the restart so
+# the account has process/memory headroom when Passenger respawns.
+step "Reaping orphaned one-off scripts (housekeeping)"
+ORPHAN_MAX_AGE=1800   # seconds (30 min); legit scripts finish in seconds
+MY_PID=$$
+reaped=0
+while read -r opid oetimes oargs; do
+  [ -z "${opid:-}" ] && continue
+  [ "$opid" = "$MY_PID" ] && continue
+  # NEVER touch the live app, system, ssh, or this deploy process
+  case "$oargs" in
+    *wrapper-server.js*|*server.js*|*Passenger*|*passenger*|*"systemd --user"*|*sshd*|*post-deploy*|*cpanel-post-deploy*) continue ;;
+  esac
+  # Only target one-off scripts (node -e one-liners, tsx scripts, seed/migrate)
+  case "$oargs" in
+    *"node -e "*|*tsx*scripts/*|*scripts/seed*|*scripts/migrate*) : ;;
+    *) continue ;;
+  esac
+  if [ "${oetimes:-0}" -gt "$ORPHAN_MAX_AGE" ]; then
+    log "  reaping orphan pid=$opid (${oetimes}s elapsed): ${oargs:0:90}"
+    kill "$opid" 2>/dev/null || true        # SIGTERM first (let it clean up)
+    sleep 2
+    if kill -0 "$opid" 2>/dev/null; then
+      kill -9 "$opid" 2>/dev/null || true    # SIGKILL only if it ignored TERM
+    fi
+    reaped=$((reaped + 1))
+  fi
+done < <(ps -u "$(id -un)" -o pid=,etimes=,args= 2>/dev/null || true)
+log "  ✓ Orphan reap complete (${reaped} reaped)"
+
 # ─── STEP 4: Restart the Node.js app ───────────────────────────────────────
 step "4/5  Restarting Node.js application"
 

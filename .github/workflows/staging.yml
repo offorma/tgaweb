@@ -42,6 +42,21 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      # Fetch the SCHEMA engine too (generate only fetches the query engine), so
+      # the on-server `prisma db push` works offline. See deploy.yml for details.
+      - name: Fetch Prisma schema engine for the server
+        env:
+          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x,debian-openssl-3.0.x
+        run: |
+          npx prisma migrate diff --from-empty \
+            --to-schema-datamodel prisma/schema.prisma --script >/dev/null 2>&1 || true
+          echo "Schema engine binaries present:"
+          ls -1 node_modules/@prisma/engines/ | grep -E 'schema-engine' || true
+          if ! ls node_modules/@prisma/engines/schema-engine-* >/dev/null 2>&1; then
+            echo "::error title=Schema engine missing::No schema-engine binary in node_modules/@prisma/engines — server-side 'prisma db push' would fail. Aborting build."
+            exit 1
+          fi
+
       - name: Build
         id: build
         run: npm run build
@@ -70,8 +85,9 @@ jobs:
           cp -r node_modules/.prisma deploy-payload/app/node_modules/.prisma
           cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
           cp -r node_modules/bcryptjs deploy-payload/app/node_modules/bcryptjs
+          # NOTE: do NOT exclude node_modules/prisma/build — the Prisma CLI lives
+          # there and the on-server `prisma db push` needs it.
           tar -czf deploy-payload.tar.gz \
-            --exclude='node_modules/prisma/build' \
             -C deploy-payload/app .
 
       - uses: actions/upload-artifact@v4
@@ -193,13 +209,14 @@ jobs:
       - name: Push database schema to staging
         if: vars.STAGING_ENABLED == 'true'
         run: |
+          # Use the bundled Prisma CLI directly (no npx/network on the server).
           ssh staging "
             export PATH=${{ env.NODE_BIN }}:\$PATH
             cd '${{ secrets.STAGING_CPANEL_PATH }}'
             export DATABASE_URL='${{ secrets.STAGING_DATABASE_URL }}'
-            npx prisma db push --accept-data-loss --skip-generate
+            node node_modules/prisma/build/index.js db push --accept-data-loss --skip-generate
             echo 'Staging database schema pushed'
-          "
+          " || { echo '::error title=Staging DB schema push failed::prisma db push failed on staging — schema is NOT up to date (see logs above).'; exit 1; }
 
       - name: Run post-deploy script
         timeout-minutes: 15
