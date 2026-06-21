@@ -380,12 +380,30 @@ function CreateUserForm({
   const passwordOk = checks.every((c) => c.ok);
 
   const generatePassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
-    let pwd = "";
-    const arr = new Uint8Array(20);
-    crypto.getRandomValues(arr);
-    for (let i = 0; i < 20; i++) pwd += chars[arr[i] % chars.length];
-    setPassword(pwd);
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghijkmnopqrstuvwxyz";
+    const digits = "23456789";
+    const symbols = "!@#$%^&*";
+    const all = upper + lower + digits + symbols;
+    const rnd = new Uint8Array(20);
+    crypto.getRandomValues(rnd);
+    // Guarantee at least one char from each required class so the generated
+    // password always satisfies the strength checks, then fill the rest.
+    const out = [
+      upper[rnd[0] % upper.length],
+      lower[rnd[1] % lower.length],
+      digits[rnd[2] % digits.length],
+      symbols[rnd[3] % symbols.length],
+    ];
+    for (let i = 4; i < 20; i++) out.push(all[rnd[i] % all.length]);
+    // Fisher–Yates shuffle so the guaranteed chars aren't always at the front.
+    const shuf = new Uint8Array(20);
+    crypto.getRandomValues(shuf);
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = shuf[i] % (i + 1);
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    setPassword(out.join(""));
     setShowPwd(true);
   };
 
