@@ -34,6 +34,27 @@ describe("<AdminShell />", () => {
     cy.contains("button", "Sign Out").should("exist");
   });
 
+  it("shows the Secrets Vault link for ADMIN users", () => {
+    cy.mount(
+      <AdminShell userRole="ADMIN">
+        <div />
+      </AdminShell>
+    );
+    cy.contains("a", "Secrets Vault").should("have.attr", "href", "/admin/secrets");
+  });
+
+  it("hides the admin-only Secrets Vault link for EDITOR users", () => {
+    cy.mount(
+      <AdminShell userRole="EDITOR">
+        <div />
+      </AdminShell>
+    );
+    cy.contains("a", "Secrets Vault").should("not.exist");
+    // Non-admin-only items still render
+    cy.contains("a", "Dashboard").should("exist");
+    cy.contains("a", "User Management").should("exist");
+  });
+
   it("renders the Programs nav item linking to its route", () => {
     cy.mount(
       <AdminShell>

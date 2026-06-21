@@ -31,7 +31,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: any;
+  tip: string;
+  adminOnly?: boolean;
+};
+
+const NAV: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, tip: "Overview of your site — quick actions, content counts, and recent activity logs." },
   { href: "/admin/settings", label: "Site Settings", icon: Settings, tip: "Edit school name, contact info, hero text, mission/vision, admissions info, social media links, and the Apply button." },
   { href: "/admin/slides", label: "Hero Slides", icon: GalleryVerticalEnd, tip: "Manage the background slideshow on the homepage hero. Add images, titles, subtitles, and CTAs for each slide." },
@@ -45,14 +53,23 @@ const NAV = [
   { href: "/admin/campus", label: "Campus Life", icon: ImageIcon, tip: "Manage the photo grid showing sports, arts, STEM, library, and other campus activities." },
   { href: "/admin/downloads", label: "Downloads", icon: FileDown, tip: "Manage downloadable files (PDFs, documents) shown in the site footer." },
   { href: "/admin/media", label: "Media Library", icon: FolderOpen, tip: "View, copy URLs, or delete images and documents uploaded to Cloudinary." },
-  { href: "/admin/secrets", label: "Secrets Vault", icon: KeyRound, tip: "Encrypted storage for SMTP passwords, payment gateway keys, and other sensitive credentials. Master key lives in your cPanel environment." },
+  { href: "/admin/secrets", label: "Secrets Vault", icon: KeyRound, adminOnly: true, tip: "Encrypted storage for SMTP passwords, payment gateway keys, and other sensitive credentials. Master key lives in your cPanel environment." },
   { href: "/admin/users", label: "User Management", icon: UserCog, tip: "Create and manage admin & editor accounts. New admins are required to enable 2FA on first login." },
 ];
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({
+  children,
+  userRole = "ADMIN",
+}: {
+  children: React.ReactNode;
+  userRole?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Admin-only nav items (e.g. Secrets Vault) are hidden from EDITORs.
+  const navItems = NAV.filter((item) => !item.adminOnly || userRole === "ADMIN");
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -72,6 +89,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <SidebarContent
           pathname={pathname}
           onSignOut={handleSignOut}
+          navItems={navItems}
         />
       </aside>
 
@@ -97,6 +115,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 pathname={pathname}
                 onSignOut={handleSignOut}
                 onClose={() => setSidebarOpen(false)}
+                navItems={navItems}
               />
             </motion.aside>
           </>
@@ -139,10 +158,12 @@ function SidebarContent({
   pathname,
   onSignOut,
   onClose,
+  navItems,
 }: {
   pathname: string;
   onSignOut: () => void;
   onClose?: () => void;
+  navItems: typeof NAV;
 }) {
   return (
     <>
@@ -172,7 +193,7 @@ function SidebarContent({
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {NAV.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

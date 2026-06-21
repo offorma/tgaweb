@@ -53,6 +53,28 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
+    // ADMIN-only areas: the Secrets Vault holds encrypted credentials, so only
+    // ADMIN may view or modify it — EDITORs are blocked here (in addition to the
+    // ADMIN role check on every /api/admin/secrets route handler).
+    const role = String(token.role || "EDITOR"); // least-privilege default
+    const isSecretsPath =
+      pathname === "/admin/secrets" ||
+      pathname.startsWith("/admin/secrets/") ||
+      pathname === "/api/admin/secrets" ||
+      pathname.startsWith("/api/admin/secrets/");
+    if (isSecretsPath && role !== "ADMIN") {
+      if (isAdminApi) {
+        return NextResponse.json(
+          { error: "Forbidden — admin role required to manage secrets." },
+          { status: 403 }
+        );
+      }
+      const deniedUrl = req.nextUrl.clone();
+      deniedUrl.pathname = "/admin/dashboard";
+      deniedUrl.searchParams.set("denied", "secrets");
+      return NextResponse.redirect(deniedUrl);
+    }
+
     // Inject user info into request headers for downstream API routes
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-admin-user-id", String(token.sub || ""));

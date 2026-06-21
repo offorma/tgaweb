@@ -35,5 +35,7 @@ export default async function AdminLayout({
   }
   */
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <AdminShell userRole={(session.user as any)?.role}>{children}</AdminShell>
+  );
 }
