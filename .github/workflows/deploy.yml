@@ -22,7 +22,12 @@ env:
   NODE_BIN: /opt/alt/alt-nodejs22/root/usr/bin
 
 jobs:
+  # Unit tests + 95% coverage gate. Blocks build AND deploy if it fails.
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: [test]
     if: ${{ !inputs.skip_build }}
     runs-on: ubuntu-latest
     steps:
@@ -42,7 +47,12 @@ jobs:
         run: npx prisma generate
 
       - name: Build
+        id: build
         run: npm run build
+
+      - name: Annotate build failure
+        if: failure() && steps.build.outcome == 'failure'
+        run: echo "::error title=Build failed::next build failed during deploy — see the 'Build' step logs above."
 
       - name: Stage deploy payload
         run: |
@@ -79,8 +89,9 @@ jobs:
           retention-days: 7
 
   deploy:
-    needs: [build]
-    if: always() && (needs.build.result == 'success' || inputs.skip_build)
+    needs: [test, build]
+    # Deploy only when tests/coverage passed, and the build succeeded (or was skipped).
+    if: always() && needs.test.result == 'success' && (needs.build.result == 'success' || inputs.skip_build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -224,6 +235,25 @@ jobs:
               --commit '${COMMIT}' \
               --version '${VERSION}'
           "
+
+      - name: Collect remote logs on failure
+        if: failure()
+        run: |
+          echo "::error title=Deployment failed::A deploy step failed — collecting cPanel logs below."
+          if [ -f ~/.ssh/deploy_key ]; then
+            ssh cpanel "
+              DP='${{ secrets.CPANEL_PATH }}'
+              echo '===== app / post-deploy logs (\$DP/logs) ====='
+              tail -n 200 \$DP/logs/*.log 2>/dev/null || echo '(no logs found in '\$DP'/logs)'
+              echo '===== passenger / stderr ====='
+              tail -n 200 ~/logs/*.log 2>/dev/null || true
+              tail -n 200 \$DP/stderr.log 2>/dev/null || true
+              echo '===== prisma client present? ====='
+              ls \$DP/node_modules/.prisma 2>/dev/null || echo '(.prisma missing)'
+            " || echo "::warning::Could not reach the server to collect logs (SSH likely failed before setup)."
+          else
+            echo "::warning::SSH key was not configured — failure occurred before the deploy stage (e.g. artifact download)."
+          fi
 
       - name: Cleanup SSH key
         if: always()

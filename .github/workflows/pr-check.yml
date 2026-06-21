@@ -10,7 +10,12 @@ on:
       - 'docs/**'
 
 jobs:
+  # Unit tests + 95% coverage gate. Build is blocked unless this passes.
+  test:
+    uses: ./.github/workflows/test.yml
+
   check:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,5 +27,19 @@ jobs:
 
       - run: npm ci
       - run: npx prisma generate
-      - run: npm run lint
-      - run: npm run build
+
+      - name: Lint
+        id: lint
+        run: npm run lint
+
+      - name: Annotate lint failure
+        if: failure() && steps.lint.outcome == 'failure'
+        run: echo "::error title=Lint failed::ESLint reported errors — see the 'Lint' step logs above."
+
+      - name: Build
+        id: build
+        run: npm run build
+
+      - name: Annotate build failure
+        if: failure() && steps.build.outcome == 'failure'
+        run: echo "::error title=Build failed::next build failed — see the 'Build' step logs above."

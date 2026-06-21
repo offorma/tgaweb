@@ -19,7 +19,12 @@ env:
   NODE_BIN: /opt/alt/alt-nodejs22/root/usr/bin
 
 jobs:
+  # Unit tests + 95% coverage gate. Blocks the staging build/deploy if it fails.
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +43,12 @@ jobs:
         run: npx prisma generate
 
       - name: Build
+        id: build
         run: npm run build
+
+      - name: Annotate build failure
+        if: failure() && steps.build.outcome == 'failure'
+        run: echo "::error title=Build failed::next build failed during staging — see the 'Build' step logs above."
 
       - name: Create deploy tarball
         run: |
@@ -246,6 +256,23 @@ jobs:
                 body,
               });
             }
+
+      - name: Collect remote logs on failure
+        if: failure()
+        run: |
+          echo "::error title=Staging deploy failed::A staging step failed — collecting logs below."
+          if [ -f ~/.ssh/deploy_key ]; then
+            ssh staging "
+              SP='${{ secrets.STAGING_CPANEL_PATH }}'
+              echo '===== app / post-deploy logs (\$SP/logs) ====='
+              tail -n 200 \$SP/logs/*.log 2>/dev/null || echo '(no logs found in '\$SP'/logs)'
+              echo '===== passenger / stderr ====='
+              tail -n 200 ~/logs/*.log 2>/dev/null || true
+              tail -n 200 \$SP/stderr.log 2>/dev/null || true
+            " || echo "::warning::Could not reach staging server to collect logs."
+          else
+            echo "::warning::SSH key not configured — failure occurred before the deploy stage."
+          fi
 
       - name: Cleanup SSH key
         if: always()

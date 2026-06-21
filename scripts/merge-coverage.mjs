@@ -13,7 +13,7 @@
  *
  * Pass --check to exit non-zero when any metric is below THRESHOLD (default 95).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import libCoverage from "istanbul-lib-coverage";
 import { createContext } from "istanbul-lib-report";
 import reports from "istanbul-reports";
@@ -66,14 +66,36 @@ console.log(`  HTML report: ${OUT_DIR}/index.html`);
 
 writeFileSync(`${OUT_DIR}/summary.json`, JSON.stringify(d, null, 2));
 
+// Write a GitHub Actions job-summary table when running in CI.
+const metrics = ["lines", "statements", "functions", "branches"];
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const ok = (m) => (d[m].pct >= THRESHOLD ? "✅" : "❌");
+  const table = [
+    `## Coverage (threshold ${THRESHOLD}%)`,
+    "",
+    "| Metric | Coverage | Covered/Total | |",
+    "| --- | --- | --- | --- |",
+    ...metrics.map(
+      (m) => `| ${m} | ${d[m].pct}% | ${d[m].covered}/${d[m].total} | ${ok(m)} |`
+    ),
+    "",
+  ].join("\n");
+  try {
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + "\n");
+  } catch {
+    /* non-fatal */
+  }
+}
+
 if (check) {
-  const metrics = ["lines", "statements", "functions", "branches"];
   const failures = metrics.filter((m) => d[m].pct < THRESHOLD);
   if (failures.length) {
-    console.error(
-      `\n✗ Coverage gate FAILED (threshold ${THRESHOLD}%): ` +
-        failures.map((m) => `${m} ${d[m].pct}%`).join(", ")
-    );
+    const detail = failures.map((m) => `${m} ${d[m].pct}% (need ${THRESHOLD}%)`).join(", ");
+    console.error(`\n✗ Coverage gate FAILED (threshold ${THRESHOLD}%): ${detail}`);
+    // Prominent annotation in the GitHub Actions UI.
+    if (process.env.GITHUB_ACTIONS) {
+      console.log(`::error title=Coverage gate failed::Below ${THRESHOLD}% — ${detail}`);
+    }
     process.exit(1);
   }
   console.log(`\n✓ Coverage gate PASSED — all metrics ≥ ${THRESHOLD}%`);
