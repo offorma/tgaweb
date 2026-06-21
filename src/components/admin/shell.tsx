@@ -54,7 +54,7 @@ const NAV: NavItem[] = [
   { href: "/admin/downloads", label: "Downloads", icon: FileDown, tip: "Manage downloadable files (PDFs, documents) shown in the site footer." },
   { href: "/admin/media", label: "Media Library", icon: FolderOpen, tip: "View, copy URLs, or delete images and documents uploaded to Cloudinary." },
   { href: "/admin/secrets", label: "Secrets Vault", icon: KeyRound, adminOnly: true, tip: "Encrypted storage for SMTP passwords, payment gateway keys, and other sensitive credentials. Master key lives in your cPanel environment." },
-  { href: "/admin/users", label: "User Management", icon: UserCog, tip: "Create and manage admin & editor accounts. New admins are required to enable 2FA on first login." },
+  { href: "/admin/users", label: "User Management", icon: UserCog, adminOnly: true, tip: "Create and manage admin & editor accounts. New admins are required to enable 2FA on first login." },
 ];
 
 export function AdminShell({
