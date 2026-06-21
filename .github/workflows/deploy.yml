@@ -43,23 +43,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      # `prisma generate` only fetches the QUERY engine. The on-server
-      # `prisma db push` also needs the SCHEMA engine, which CI must download
-      # here (it has network) for the cPanel server's OpenSSL targets — otherwise
-      # the schema is silently never applied and the app 500s on missing tables.
-      - name: Fetch Prisma schema engine for the server
+      # The cPanel server runs OpenSSL 1.1.1k → it needs debian-openssl-1.1.x
+      # engines. `prisma generate` only fetches the QUERY engine; force the
+      # SCHEMA engine (used by the on-server `db push`) to download for this
+      # target too, otherwise the schema is silently never applied and the app
+      # 500s on missing tables.
+      - name: Generate Prisma client + bundle schema engine
         env:
           PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x,debian-openssl-3.0.x
         run: |
+          npx prisma generate
+          # Exercise the schema engine so the CLI downloads it for the targets above.
           npx prisma migrate diff --from-empty \
             --to-schema-datamodel prisma/schema.prisma --script >/dev/null 2>&1 || true
-          echo "Schema engine binaries present:"
-          ls -1 node_modules/@prisma/engines/ | grep -E 'schema-engine' || true
-          if ! ls node_modules/@prisma/engines/schema-engine-* >/dev/null 2>&1; then
-            echo "::error title=Schema engine missing::No schema-engine binary in node_modules/@prisma/engines — the server-side 'prisma db push' would fail. Aborting build."
+          echo "Engines in node_modules/@prisma/engines:"
+          ls -1 node_modules/@prisma/engines/ | grep -iE 'schema-engine|libquery' || true
+          if ! ls node_modules/@prisma/engines/schema-engine-debian-openssl-1.1.x >/dev/null 2>&1; then
+            echo "::error title=Schema engine missing::schema-engine-debian-openssl-1.1.x was not fetched — the cPanel server (OpenSSL 1.1) cannot run 'prisma db push'. Aborting build."
             exit 1
           fi
 
@@ -91,10 +91,23 @@ jobs:
         # binaries are available on cPanel (avoids needing prisma CLI there).
         run: |
           mkdir -p deploy-payload/app/node_modules
-          cp -r node_modules/@prisma deploy-payload/app/node_modules/@prisma
-          cp -r node_modules/.prisma deploy-payload/app/node_modules/.prisma
+          # IMPORTANT: the Next standalone build (copied above) already created
+          # node_modules/@prisma (and .prisma) for the runtime client. Copy with a
+          # trailing '/.' to MERGE contents into those dirs — `cp -r src dest` when
+          # dest exists nests it (dest/@prisma/@prisma), hiding @prisma/engines from
+          # the CLI and duplicating ~200MB of engine binaries.
+          mkdir -p deploy-payload/app/node_modules/@prisma deploy-payload/app/node_modules/.prisma
+          cp -r node_modules/@prisma/. deploy-payload/app/node_modules/@prisma/
+          cp -r node_modules/.prisma/.  deploy-payload/app/node_modules/.prisma/
           cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
           cp -r node_modules/bcryptjs deploy-payload/app/node_modules/bcryptjs
+          # Sanity-check: the CLI must be able to resolve @prisma/engines (no nesting)
+          if [ ! -f deploy-payload/app/node_modules/@prisma/engines/package.json ]; then
+            echo "::error title=Bad Prisma bundle::@prisma/engines is not at node_modules/@prisma/engines (nesting?). The on-server CLI would crash."
+            exit 1
+          fi
+          ls deploy-payload/app/node_modules/@prisma/engines/schema-engine-debian-openssl-1.1.x >/dev/null 2>&1 \
+            || echo "::warning title=Engine target::schema-engine-debian-openssl-1.1.x not bundled — the cPanel server (OpenSSL 1.1) may fail db push."
           # NOTE: do NOT exclude node_modules/prisma/build — the Prisma CLI lives
           # there and the on-server `prisma db push` needs it.
           tar -czf deploy-payload.tar.gz \
@@ -190,8 +203,14 @@ jobs:
             rm -rf .next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public 2>/dev/null || true
             echo 'Cleaned old deploy files'
 
-            # ── Extract new payload ──
-            tar -xzf deploy-payload.tar.gz
+            # ── Extract new payload (retry: large payloads occasionally get the
+            #    SSH session killed by the account's resource limits mid-extract) ──
+            extracted=0
+            for attempt in 1 2 3; do
+              if tar -xzf deploy-payload.tar.gz; then extracted=1; break; fi
+              echo \"tar extract attempt \$attempt failed; retrying...\"; sleep 5
+            done
+            if [ \"\$extracted\" != 1 ]; then echo 'ERROR: extraction failed after retries'; exit 1; fi
             rm -f deploy-payload.tar.gz
             echo 'Extraction complete'
 

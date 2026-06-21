@@ -39,21 +39,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      # Fetch the SCHEMA engine too (generate only fetches the query engine), so
-      # the on-server `prisma db push` works offline. See deploy.yml for details.
-      - name: Fetch Prisma schema engine for the server
+      # The cPanel server runs OpenSSL 1.1.x → it needs the debian-openssl-1.1.x
+      # SCHEMA engine for the on-server `db push`. See deploy.yml for details.
+      - name: Generate Prisma client + bundle schema engine
         env:
           PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x,debian-openssl-3.0.x
         run: |
+          npx prisma generate
           npx prisma migrate diff --from-empty \
             --to-schema-datamodel prisma/schema.prisma --script >/dev/null 2>&1 || true
-          echo "Schema engine binaries present:"
-          ls -1 node_modules/@prisma/engines/ | grep -E 'schema-engine' || true
-          if ! ls node_modules/@prisma/engines/schema-engine-* >/dev/null 2>&1; then
-            echo "::error title=Schema engine missing::No schema-engine binary in node_modules/@prisma/engines — server-side 'prisma db push' would fail. Aborting build."
+          echo "Engines in node_modules/@prisma/engines:"
+          ls -1 node_modules/@prisma/engines/ | grep -iE 'schema-engine|libquery' || true
+          if ! ls node_modules/@prisma/engines/schema-engine-debian-openssl-1.1.x >/dev/null 2>&1; then
+            echo "::error title=Schema engine missing::schema-engine-debian-openssl-1.1.x was not fetched — staging (OpenSSL 1.1) cannot run 'prisma db push'. Aborting build."
             exit 1
           fi
 
@@ -79,14 +77,19 @@ jobs:
           [ -f package-lock.json ] && cp package-lock.json deploy-payload/app/ || true
           [ -f bun.lock ] && cp bun.lock deploy-payload/app/ || true
           [ -f run.sh ] && cp run.sh deploy-payload/app/ && chmod +x deploy-payload/app/run.sh || true
-          # Bundle Prisma client + engine binaries (avoids needing prisma CLI on cPanel)
-          mkdir -p deploy-payload/app/node_modules
-          cp -r node_modules/@prisma deploy-payload/app/node_modules/@prisma
-          cp -r node_modules/.prisma deploy-payload/app/node_modules/.prisma
+          # Bundle Prisma client + engine binaries (avoids needing prisma CLI on cPanel).
+          # MERGE into the dirs the Next standalone already created (trailing '/.') —
+          # `cp -r src dest` nests when dest exists, hiding @prisma/engines from the CLI.
+          mkdir -p deploy-payload/app/node_modules/@prisma deploy-payload/app/node_modules/.prisma
+          cp -r node_modules/@prisma/. deploy-payload/app/node_modules/@prisma/
+          cp -r node_modules/.prisma/.  deploy-payload/app/node_modules/.prisma/
           cp -r node_modules/prisma deploy-payload/app/node_modules/prisma
           cp -r node_modules/bcryptjs deploy-payload/app/node_modules/bcryptjs
-          # NOTE: do NOT exclude node_modules/prisma/build — the Prisma CLI lives
-          # there and the on-server `prisma db push` needs it.
+          if [ ! -f deploy-payload/app/node_modules/@prisma/engines/package.json ]; then
+            echo "::error title=Bad Prisma bundle::@prisma/engines is not at node_modules/@prisma/engines (nesting?)."
+            exit 1
+          fi
+          # NOTE: do NOT exclude node_modules/prisma/build — the Prisma CLI lives there.
           tar -czf deploy-payload.tar.gz \
             -C deploy-payload/app .
 
@@ -173,8 +176,13 @@ jobs:
             # Clean old deploy files (preserved dirs are safe in /tmp)
             rm -rf .next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public 2>/dev/null || true
 
-            # Extract
-            tar -xzf deploy-payload.tar.gz
+            # Extract (retry — large payloads can get the SSH session killed mid-extract)
+            extracted=0
+            for attempt in 1 2 3; do
+              if tar -xzf deploy-payload.tar.gz; then extracted=1; break; fi
+              echo \"tar extract attempt \$attempt failed; retrying...\"; sleep 5
+            done
+            [ \"\$extracted\" = 1 ] || { echo 'ERROR: extraction failed after retries'; exit 1; }
             rm -f deploy-payload.tar.gz
 
             # Restore
