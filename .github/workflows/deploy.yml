@@ -264,10 +264,11 @@ jobs:
           # then push the schema from here. The server never runs Prisma.
           set -e
           PROD_URL='${{ secrets.PROD_DATABASE_URL }}'
-          DBHOST=$(node -e "process.stdout.write(new URL(process.env.U).hostname)" U="$PROD_URL")
-          DBPORT=$(node -e "const u=new URL(process.env.U);process.stdout.write(u.port||'5432')" U="$PROD_URL")
+          [ -n "$PROD_URL" ] || { echo "::error title=Missing secret::PROD_DATABASE_URL is empty — set it in the repo secrets."; exit 1; }
+          DBHOST=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$PROD_URL")
+          DBPORT=$(node -e "const u=new URL(process.argv[1]);process.stdout.write(u.port||'5432')" "$PROD_URL")
           ssh -fN -o ExitOnForwardFailure=yes -L 5433:"$DBHOST":"$DBPORT" cpanel
-          TUNNEL_URL=$(node -e "const u=new URL(process.env.U);u.hostname='127.0.0.1';u.port='5433';process.stdout.write(u.toString())" U="$PROD_URL")
+          TUNNEL_URL=$(node -e "const u=new URL(process.argv[1]);u.hostname='127.0.0.1';u.port='5433';process.stdout.write(u.toString())" "$PROD_URL")
           if DATABASE_URL="$TUNNEL_URL" npx prisma db push --skip-generate --accept-data-loss; then
             echo 'Database schema pushed via SSH tunnel'
           else
