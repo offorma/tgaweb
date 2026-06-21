@@ -50,7 +50,8 @@ jobs:
       # 500s on missing tables.
       - name: Generate Prisma client + bundle schema engine
         env:
-          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x,debian-openssl-3.0.x
+          # Server is OpenSSL 1.1.x; the CLI auto-fetches its own native (CI) engine.
+          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x
         run: |
           npx prisma generate
           # Exercise the schema engine so the CLI downloads it for the targets above.
@@ -182,49 +183,72 @@ jobs:
             "${SSH_TARGET}:${DEPLOY_PATH}/deploy-payload.tar.gz"
           echo "Upload complete"
 
-      - name: Extract payload (preserving backups, logs, uploads, .env)
+      - name: Extract & swap release (staged — live app stays up if extract fails)
         run: |
           ssh cpanel "
             DEPLOY_PATH='${{ secrets.CPANEL_PATH }}'
-            cd \$DEPLOY_PATH
-            PRESERVE_DIR=/tmp/tga-preserve-\$\$
+            cd \$DEPLOY_PATH || exit 1
+            TARBALL=deploy-payload.tar.gz
+            # App files come from the tarball and get swapped. Everything else
+            # (.env, backups, logs, uploads, tmp, wrapper-server.js) is preserved
+            # simply by never touching it.
+            APP_ITEMS='.next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public'
 
-            # ── Preserve existing files ──
-            mkdir -p \$PRESERVE_DIR
-            for d in backups logs uploads tmp; do
-              [ -d \$d ] && mv \$d \$PRESERVE_DIR/\$d 2>/dev/null || true
-            done
-            for f in .env .env.local .env.production; do
-              [ -f \$f ] && cp \$f \$PRESERVE_DIR/\$f 2>/dev/null || true
-            done
-            echo 'Preserved existing files'
+            # ── 1) Integrity check (a truncated SCP also yields exit 255) ──
+            echo 'Verifying tarball...'
+            gzip -t \$TARBALL || { echo 'ERROR: tarball is corrupt/truncated (gzip -t failed).'; exit 1; }
+            tar -tzf \$TARBALL >/dev/null 2>&1 || { echo 'ERROR: tarball listing failed.'; exit 1; }
 
-            # ── Clean old deploy files (preserved dirs are safe in /tmp) ──
-            rm -rf .next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public 2>/dev/null || true
-            echo 'Cleaned old deploy files'
+            # ── 2) Free space: prune old artifacts, then require ~3x the tarball ──
+            ls -t backups/rollback-*.tgz 2>/dev/null | tail -n +4 | xargs rm -f 2>/dev/null || true
+            rm -rf .deploy-new-* .deploy-old-* 2>/dev/null || true
+            TB=\$(stat -c%s \$TARBALL 2>/dev/null || echo 0)
+            AVAIL=\$(df -kP . | awk 'NR==2{print \$4*1024}')
+            echo \"tarball=\$TB bytes, free=\$AVAIL bytes\"
+            if [ \"\$TB\" -gt 0 ] && [ \"\$AVAIL\" -lt \$((TB * 3)) ]; then
+              echo 'ERROR: not enough free disk to extract safely (need ~3x the tarball). Free space in cPanel and retry.'; exit 1
+            fi
 
-            # ── Extract new payload (retry: large payloads occasionally get the
-            #    SSH session killed by the account's resource limits mid-extract) ──
+            # ── 3) Extract to a STAGING dir — the live app is untouched if this fails ──
+            NEW=\$DEPLOY_PATH/.deploy-new-\$\$
+            mkdir -p \$NEW
             extracted=0
             for attempt in 1 2 3; do
-              if tar -xzf deploy-payload.tar.gz; then extracted=1; break; fi
-              echo \"tar extract attempt \$attempt failed; retrying...\"; sleep 5
+              if tar -xzf \$TARBALL -C \$NEW; then extracted=1; break; fi
+              echo \"extract attempt \$attempt failed; retrying...\"; sleep 5
             done
-            if [ \"\$extracted\" != 1 ]; then echo 'ERROR: extraction failed after retries'; exit 1; fi
-            rm -f deploy-payload.tar.gz
-            echo 'Extraction complete'
+            if [ \"\$extracted\" != 1 ] || [ ! -f \$NEW/server.js ]; then
+              echo 'ERROR: staged extraction failed — LIVE APP LEFT UNTOUCHED.'
+              rm -rf \$NEW; exit 1
+            fi
+            echo 'Staged extraction OK'
 
-            # ── Restore preserved files ──
-            for d in backups logs uploads tmp; do
-              [ -d \$PRESERVE_DIR/\$d ] && mv \$PRESERVE_DIR/\$d \$DEPLOY_PATH/\$d 2>/dev/null || true
+            # ── 4) Swap new release in (fast renames within the same filesystem) ──
+            OLD=\$DEPLOY_PATH/.deploy-old-\$\$
+            mkdir -p \$OLD
+            for item in \$APP_ITEMS; do
+              [ -e \$DEPLOY_PATH/\$item ] && mv \$DEPLOY_PATH/\$item \$OLD/\$item 2>/dev/null || true
             done
-            for f in .env .env.local .env.production; do
-              [ -f \$PRESERVE_DIR/\$f ] && mv \$PRESERVE_DIR/\$f \$DEPLOY_PATH/\$f 2>/dev/null || true
+            swap_ok=1
+            for item in \$APP_ITEMS; do
+              if [ -e \$NEW/\$item ]; then mv \$NEW/\$item \$DEPLOY_PATH/\$item || swap_ok=0; fi
             done
-            rm -rf \$PRESERVE_DIR 2>/dev/null || true
-            echo 'Files restored'
-            ls node_modules/@prisma 2>/dev/null | head -5
-            ls node_modules/.prisma 2>/dev/null | head -5
+
+            # ── 5) Restore-on-failure: roll the previous release back into place ──
+            if [ \"\$swap_ok\" != 1 ] || [ ! -f \$DEPLOY_PATH/server.js ]; then
+              echo 'ERROR: swap failed — restoring previous release so the site stays up.'
+              for item in \$APP_ITEMS; do
+                rm -rf \$DEPLOY_PATH/\$item 2>/dev/null || true
+                [ -e \$OLD/\$item ] && mv \$OLD/\$item \$DEPLOY_PATH/\$item 2>/dev/null || true
+              done
+              rm -rf \$NEW \$OLD; exit 1
+            fi
+
+            # ── 6) Success — clean up ──
+            rm -rf \$NEW \$OLD
+            rm -f \$TARBALL
+            echo 'Release swapped in (preserved: .env, backups, logs, uploads, tmp, wrapper-server.js)'
+            ls -d node_modules/@prisma/engines >/dev/null 2>&1 && echo '@prisma/engines present ✓' || echo 'WARN: @prisma/engines missing'
           "
 
       - name: Copy static files to public_html

@@ -3,10 +3,12 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // Build for both the GitHub Actions runner (debian-openssl-3.0.x) AND
-  // common cPanel architectures. The deploy tarball ships the right binary
-  // for the cPanel server's runtime, so no engine download happens there.
-  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x", "debian-openssl-1.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
+  // Only the two targets we actually need: "native" for the GitHub Actions
+  // runner's build, and "debian-openssl-1.1.x" for the cPanel server (OpenSSL
+  // 1.1.1k). Dropping the unused targets removes ~150MB of engine binaries from
+  // the deploy tarball — the main cause of flaky extraction on the
+  // quota-limited shared account.
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
 datasource db {

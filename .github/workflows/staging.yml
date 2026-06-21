@@ -43,7 +43,8 @@ jobs:
       # SCHEMA engine for the on-server `db push`. See deploy.yml for details.
       - name: Generate Prisma client + bundle schema engine
         env:
-          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x,debian-openssl-3.0.x
+          # Server is OpenSSL 1.1.x; the CLI auto-fetches its own native (CI) engine.
+          PRISMA_CLI_BINARY_TARGETS: debian-openssl-1.1.x
         run: |
           npx prisma generate
           npx prisma migrate diff --from-empty \
@@ -161,39 +162,57 @@ jobs:
             deploy-payload.tar.gz \
             "${STAGING_USER}@${STAGING_HOST}:${STAGING_PATH}/deploy-payload.tar.gz"
 
-          # Extract on server, preserving .env, backups, logs, uploads, tmp
+          # Stage-then-swap: extract to a staging dir and atomically swap in, so a
+          # failed extraction never takes down the live app. .env/backups/logs/
+          # uploads/tmp/wrapper-server.js are preserved by never touching them.
           ssh staging "
-            cd '${STAGING_PATH}'
+            DEPLOY_PATH='${STAGING_PATH}'
+            cd \$DEPLOY_PATH || exit 1
+            TARBALL=deploy-payload.tar.gz
+            APP_ITEMS='.next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public'
 
-            # Save preserved dirs
-            for d in backups logs uploads tmp; do
-              [ -d \$d ] && mv \$d /tmp/tga-stg-\$d-\$\$ 2>/dev/null || true
-            done
-            for f in .env .env.local .env.production; do
-              [ -f \$f ] && cp \$f /tmp/tga-stg-\$f-\$\$ 2>/dev/null || true
-            done
+            gzip -t \$TARBALL || { echo 'ERROR: tarball corrupt/truncated.'; exit 1; }
+            tar -tzf \$TARBALL >/dev/null 2>&1 || { echo 'ERROR: tarball listing failed.'; exit 1; }
 
-            # Clean old deploy files (preserved dirs are safe in /tmp)
-            rm -rf .next node_modules server.js package.json package-lock.json bun.lock run.sh prisma scripts public 2>/dev/null || true
+            ls -t backups/rollback-*.tgz 2>/dev/null | tail -n +4 | xargs rm -f 2>/dev/null || true
+            rm -rf .deploy-new-* .deploy-old-* 2>/dev/null || true
+            TB=\$(stat -c%s \$TARBALL 2>/dev/null || echo 0)
+            AVAIL=\$(df -kP . | awk 'NR==2{print \$4*1024}')
+            echo \"tarball=\$TB bytes, free=\$AVAIL bytes\"
+            if [ \"\$TB\" -gt 0 ] && [ \"\$AVAIL\" -lt \$((TB * 3)) ]; then
+              echo 'ERROR: not enough free disk to extract safely.'; exit 1
+            fi
 
-            # Extract (retry — large payloads can get the SSH session killed mid-extract)
+            NEW=\$DEPLOY_PATH/.deploy-new-\$\$
+            mkdir -p \$NEW
             extracted=0
             for attempt in 1 2 3; do
-              if tar -xzf deploy-payload.tar.gz; then extracted=1; break; fi
-              echo \"tar extract attempt \$attempt failed; retrying...\"; sleep 5
+              if tar -xzf \$TARBALL -C \$NEW; then extracted=1; break; fi
+              echo \"extract attempt \$attempt failed; retrying...\"; sleep 5
             done
-            [ \"\$extracted\" = 1 ] || { echo 'ERROR: extraction failed after retries'; exit 1; }
-            rm -f deploy-payload.tar.gz
+            if [ \"\$extracted\" != 1 ] || [ ! -f \$NEW/server.js ]; then
+              echo 'ERROR: staged extraction failed — live app untouched.'; rm -rf \$NEW; exit 1
+            fi
 
-            # Restore
-            for d in backups logs uploads tmp; do
-              [ -d /tmp/tga-stg-\$d-\$\$ ] && mv /tmp/tga-stg-\$d-\$\$ '${STAGING_PATH}'/\$d 2>/dev/null || true
+            OLD=\$DEPLOY_PATH/.deploy-old-\$\$
+            mkdir -p \$OLD
+            for item in \$APP_ITEMS; do
+              [ -e \$DEPLOY_PATH/\$item ] && mv \$DEPLOY_PATH/\$item \$OLD/\$item 2>/dev/null || true
             done
-            for f in .env .env.local .env.production; do
-              [ -f /tmp/tga-stg-\$f-\$\$ ] && mv /tmp/tga-stg-\$f-\$\$ '${STAGING_PATH}'/\$f 2>/dev/null || true
+            swap_ok=1
+            for item in \$APP_ITEMS; do
+              if [ -e \$NEW/\$item ]; then mv \$NEW/\$item \$DEPLOY_PATH/\$item || swap_ok=0; fi
             done
-
-            echo 'Staging payload extracted'
+            if [ \"\$swap_ok\" != 1 ] || [ ! -f \$DEPLOY_PATH/server.js ]; then
+              echo 'ERROR: swap failed — restoring previous release.'
+              for item in \$APP_ITEMS; do
+                rm -rf \$DEPLOY_PATH/\$item 2>/dev/null || true
+                [ -e \$OLD/\$item ] && mv \$OLD/\$item \$DEPLOY_PATH/\$item 2>/dev/null || true
+              done
+              rm -rf \$NEW \$OLD; exit 1
+            fi
+            rm -rf \$NEW \$OLD; rm -f \$TARBALL
+            echo 'Staging release swapped in'
           "
 
       - name: Copy static files to public_html
