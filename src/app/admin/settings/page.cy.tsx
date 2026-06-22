@@ -60,6 +60,13 @@ function mountPage() {
 const STRONG = "Abcdef12345!@#";
 
 describe("<AdminSettingsPage />", () => {
+  afterEach(() => {
+    // The forced-change test sets ?force=1 on the URL — reset so it can't leak.
+    cy.window({ log: false }).then((w) =>
+      w.history.replaceState(null, "", w.location.pathname)
+    );
+  });
+
   it("loads and renders the General tab fields", () => {
     stubAll();
     mountPage();
@@ -68,6 +75,19 @@ describe("<AdminSettingsPage />", () => {
     cy.get("#schoolName").should("have.value", "Trail Gliders Academy");
     cy.get("#shortName").should("have.value", "TGA");
     cy.contains("button", "Save General").should("be.visible");
+  });
+
+  it("strict forced change (?force=1): shows only the change-password form, no tabs", () => {
+    cy.window().then((w) => w.history.replaceState(null, "", "?force=1"));
+    stubAll();
+    mountPage();
+    cy.wait("@settings");
+    cy.contains("Change your password to continue").should("be.visible");
+    cy.contains("h2", "Change Password").should("be.visible");
+    // The tabbed UI, other sections and the search box are all hidden.
+    cy.get('[role="tab"]').should("not.exist");
+    cy.contains("button", "Save General").should("not.exist");
+    cy.get('input[placeholder^="Search settings"]').should("not.exist");
   });
 
   it("shows a load-failed toast when settings fail to load", () => {

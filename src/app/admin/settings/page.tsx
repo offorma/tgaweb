@@ -193,7 +193,8 @@ export default function AdminSettingsPage() {
         description="Edit global content for the homepage, contact details, and branding. Each section has its own save button."
       />
 
-      {/* Search bar */}
+      {/* Search bar (hidden during a forced password change) */}
+      {!forcePwChange && (
       <div className="mb-6 relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -212,6 +213,7 @@ export default function AdminSettingsPage() {
           </button>
         )}
       </div>
+      )}
 
       {/* Search results (shown when search is active) */}
       {search.trim() && (
@@ -225,17 +227,21 @@ export default function AdminSettingsPage() {
       )}
 
       {forcePwChange && (
-        <div className="mb-6 flex items-start gap-2 p-4 rounded-xl bg-amber-50 border border-amber-300 text-sm text-amber-900">
-          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <span>
-            <strong>Change your password to continue.</strong> For security, you must
-            set your own password before you can access the rest of the admin area.
-          </span>
-        </div>
+        <>
+          <div className="mb-6 flex items-start gap-2 p-4 rounded-xl bg-amber-50 border border-amber-300 text-sm text-amber-900">
+            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <span>
+              <strong>Change your password to continue.</strong> For security, you must
+              set your own password before you can access the rest of the admin area.
+            </span>
+          </div>
+          {/* Strict: only the change-password form is shown until it's done. */}
+          <ChangePasswordCard />
+        </>
       )}
 
-      {/* Normal tabbed view (hidden when searching) */}
-      {!search.trim() && (
+      {/* Normal tabbed view (hidden while searching or during a forced change) */}
+      {!forcePwChange && !search.trim() && (
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList className="flex w-full overflow-x-auto justify-start h-auto p-1 bg-white border border-black/5">
           {SECTIONS.map((s) => (
