@@ -114,7 +114,10 @@ describe("POST /api/admin/change-password", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).ok).toBe(true);
     expect(h.hashPassword).toHaveBeenCalledWith(STRONG);
-    expect(h.user.update).toHaveBeenCalledWith({ where: { id: "u1" }, data: { passwordHash: "new-hash" } });
+    expect(h.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { passwordHash: "new-hash", mustChangePassword: false, failedAttempts: 0, lockedUntil: null },
+    });
     expect(h.writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "password.change.success" })
     );

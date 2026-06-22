@@ -70,11 +70,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 6) Update
+  // 6) Update — also clear the "must change password" flag and any lockout, so
+  // a forced first-login password change releases the account.
   const newHash = await hashPassword(body.newPassword);
   await db.user.update({
     where: { id: user.id },
-    data: { passwordHash: newHash },
+    data: {
+      passwordHash: newHash,
+      mustChangePassword: false,
+      failedAttempts: 0,
+      lockedUntil: null,
+    },
   });
 
   await writeAuditLog({

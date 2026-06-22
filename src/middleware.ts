@@ -79,6 +79,22 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(deniedUrl);
     }
 
+    // Enforce the initial password change: until the user sets their own password,
+    // every admin PAGE (except Settings, where they change it) redirects to the
+    // Settings → Security tab. APIs stay reachable so the Settings page can load
+    // and the change-password call can run.
+    if (
+      token.mustChangePassword &&
+      isAdminPage &&
+      pathname !== "/admin/settings" &&
+      !pathname.startsWith("/admin/settings/")
+    ) {
+      const changeUrl = req.nextUrl.clone();
+      changeUrl.pathname = "/admin/settings";
+      changeUrl.search = "?tab=security&action=change-password&force=1";
+      return NextResponse.redirect(changeUrl);
+    }
+
     // Inject user info into request headers for downstream API routes
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-admin-user-id", String(token.sub || ""));

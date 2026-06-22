@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   Save,
@@ -110,6 +111,18 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("general");
+  const [forcePwChange, setForcePwChange] = useState(false);
+
+  // Honour ?tab= / ?force= from the URL (e.g. the forced-password-change redirect).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("tab")) setTab(q.get("tab")!);
+    if (q.get("force") === "1") {
+      setTab("security");
+      setForcePwChange(true);
+    }
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -211,9 +224,19 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
+      {forcePwChange && (
+        <div className="mb-6 flex items-start gap-2 p-4 rounded-xl bg-amber-50 border border-amber-300 text-sm text-amber-900">
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <span>
+            <strong>Change your password to continue.</strong> For security, you must
+            set your own password before you can access the rest of the admin area.
+          </span>
+        </div>
+      )}
+
       {/* Normal tabbed view (hidden when searching) */}
       {!search.trim() && (
-      <Tabs defaultValue="general" className="space-y-6">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList className="flex w-full overflow-x-auto justify-start h-auto p-1 bg-white border border-black/5">
           {SECTIONS.map((s) => (
             <TabsTrigger
@@ -540,13 +563,18 @@ function ChangePasswordCard() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to change password");
       }
-      toast({
-        title: "Password changed",
-        description: "Use your new password next time you sign in.",
-      });
       setCurrent("");
       setNext("");
       setConfirm("");
+      toast({
+        title: "Password changed",
+        description: "Please sign in again with your new password.",
+      });
+      // Sign out so the session token refreshes (clears mustChangePassword and
+      // the forced-change redirect). Brief delay lets the toast show.
+      setTimeout(() => {
+        signOut({ callbackUrl: "/admin/login" });
+      }, 1200);
     } catch (e: any) {
       toast({ title: "Failed", description: e.message, variant: "destructive" });
     } finally {
