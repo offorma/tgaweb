@@ -99,7 +99,7 @@ export default function ForgotPasswordPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-11"
-                    placeholder="admin@trailgliders.edu.ng"
+                    placeholder="you@example.com"
                     disabled={loading}
                   />
                 </div>
