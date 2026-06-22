@@ -282,6 +282,9 @@ jobs:
           [ -n "$PROD_URL" ] || { echo "::error title=Missing secret::PROD_DATABASE_URL is empty — set it in the repo secrets."; exit 1; }
           DBHOST=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$PROD_URL")
           DBPORT=$(node -e "const u=new URL(process.argv[1]);process.stdout.write(u.port||'5432')" "$PROD_URL")
+          # "localhost" resolves to IPv6 ::1 when the tunnel opens the far-end
+          # connection, which pg_hba often denies — force IPv4 (how the app connects).
+          case "$DBHOST" in localhost|::1|"") DBHOST=127.0.0.1 ;; esac
           ssh -fN -o ExitOnForwardFailure=yes -L 5433:"$DBHOST":"$DBPORT" cpanel
           TUNNEL_URL=$(node -e "const u=new URL(process.argv[1]);u.hostname='127.0.0.1';u.port='5433';process.stdout.write(u.toString())" "$PROD_URL")
           if DATABASE_URL="$TUNNEL_URL" npx prisma db push --skip-generate --accept-data-loss; then
