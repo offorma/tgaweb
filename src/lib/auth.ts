@@ -181,10 +181,13 @@ export const authOptions: NextAuthOptions = {
         // (6 digits) or a backup code (XXXX-XXXX format). If no code is provided,
         // we throw a special error that the client detects to show the 2FA form.
         if (user.twoFactorEnabled && user.twoFactorSecret) {
-          const totp = (credentials.totp || "").trim();
+          let totp = (credentials.totp || "").trim();
+          // Treat the literal string "undefined"/"null" as no code — signIn can
+          // serialize an undefined credential into that string.
+          if (totp === "undefined" || totp === "null") totp = "";
 
           if (!totp) {
-            // Signal to the client that 2FA is required
+            // No code yet → tell the client to show the 2FA input (NOT a failure).
             const err: any = new Error("2FA_REQUIRED");
             err.code = "2FA_REQUIRED";
             throw err;

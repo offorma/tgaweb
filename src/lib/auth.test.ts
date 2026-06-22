@@ -236,6 +236,18 @@ describe("authorize — 2FA verification", () => {
     ).rejects.toMatchObject({ code: "2FA_REQUIRED" });
   });
 
+  it("treats totp 'undefined'/'null'/'' as no code → 2FA_REQUIRED, not a failure", async () => {
+    h.userFindUnique.mockResolvedValue(userWith2FA());
+    for (const totp of ["undefined", "null", "", "   "]) {
+      h.recordFailedLogin.mockClear();
+      await expect(
+        authorize({ email: "admin@school.test", password: "password1", totp }, baseReq)
+      ).rejects.toMatchObject({ code: "2FA_REQUIRED" });
+      // No failed-login recorded just for showing the 2FA prompt.
+      expect(h.recordFailedLogin).not.toHaveBeenCalled();
+    }
+  });
+
   it("succeeds with a valid TOTP code", async () => {
     h.userFindUnique.mockResolvedValue(userWith2FA());
     h.decryptTwoFactorSecret.mockReturnValue("plain-secret");

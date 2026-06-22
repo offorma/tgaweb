@@ -133,9 +133,15 @@ describe("<AdminLoginPage />", () => {
     cy.get("#email").type("admin@trailgliders.edu.ng");
     cy.get("#password").type("password123");
     cy.get("button[type=submit]").click();
-    cy.wait("@callback");
+    cy.wait("@callback").then(({ request }) => {
+      // The first submit must NOT send totp=undefined (the bug) — it sends "".
+      const body = typeof request.body === "string" ? request.body : new URLSearchParams(request.body as any).toString();
+      expect(body).to.not.include("totp=undefined");
+    });
     cy.contains("Two-Factor Authentication").should("be.visible");
     cy.get("#totp").should("exist");
+    // No error shown just for revealing the 2FA step
+    cy.contains("Invalid").should("not.exist");
   });
 
   it("can switch to backup code and go back from the 2FA screen", () => {

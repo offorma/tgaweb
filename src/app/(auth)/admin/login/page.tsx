@@ -44,8 +44,10 @@ function LoginForm() {
     setError(null);
     setLoading(true);
 
-    // If 2FA challenge is showing, include the TOTP/backup code
-    const totpValue = needsTwoFactor ? totp.trim() : undefined;
+    // Only send a code once the 2FA step is showing. Use "" (not undefined) —
+    // signIn serializes undefined to the string "undefined", which the server
+    // would mistake for a (wrong) 2FA code on the very first submit.
+    const totpValue = needsTwoFactor ? totp.trim() : "";
 
     const result = await signIn("credentials", {
       email,
