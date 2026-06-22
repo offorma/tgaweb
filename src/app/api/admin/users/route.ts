@@ -137,6 +137,7 @@ export const POST = adminHandler(async (req, user) => {
       name: created.name,
       email: created.email,
       role: created.role,
+      tempPassword: parsed.data.password,
       mustChangePassword: parsed.data.requirePasswordChange,
       requireTwoFactor: parsed.data.requireTwoFactor,
     });

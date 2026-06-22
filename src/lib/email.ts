@@ -479,6 +479,8 @@ export interface WelcomeInput {
   name: string;
   email: string;
   role: string;
+  /** The temporary password set by the admin — shown so the new user can sign in. */
+  tempPassword?: string;
   loginLink?: string;
   mustChangePassword?: boolean;
   requireTwoFactor?: boolean;
@@ -492,7 +494,9 @@ export async function sendWelcomeEmail(input: WelcomeInput): Promise<SendResult>
   const checklist: string[] = [];
   if (input.mustChangePassword) {
     checklist.push(
-      "Set a new password of your own on first sign-in (your temporary password was shared with you separately)."
+      input.tempPassword
+        ? "Sign in with the temporary password below, then set a new password of your own."
+        : "Set a new password of your own on first sign-in (your temporary password was shared with you separately)."
     );
   }
   if (input.requireTwoFactor) {
@@ -525,8 +529,17 @@ export async function sendWelcomeEmail(input: WelcomeInput): Promise<SendResult>
     ${detailCard([
       { label: "Name", value: esc(input.name) },
       { label: "Email", value: esc(input.email) },
+      ...(input.tempPassword
+        ? [
+            {
+              label: "Temporary password",
+              value: `<code style="display:inline-block;padding:6px 12px;border-radius:8px;background:${COLORS.navy};color:${COLORS.white};font-family:'Courier New',monospace;font-size:15px;font-weight:700;letter-spacing:1px;">${esc(input.tempPassword)}</code>`,
+            },
+          ]
+        : []),
       { label: "Role", value: `<span style="display:inline-block;padding:3px 12px;border-radius:9999px;background:${COLORS.navy};color:${COLORS.white};font-size:12px;font-weight:700;letter-spacing:.5px;">${esc(input.role)}</span>` },
     ])}
+    ${input.tempPassword ? note(`<strong>Keep this password private.</strong> For your security, change it after your first sign-in.`) : ""}
     ${checklist.length ? p(`<strong>A couple of quick first steps:</strong>`) : ""}
     ${checklistHtml}
     ${button({ label: "Sign in to the portal", href: loginLink })}
@@ -551,9 +564,9 @@ export async function sendWelcomeEmail(input: WelcomeInput): Promise<SendResult>
 An account has been created for you on the ${brand.schoolName} admin portal.
 
   Name:  ${input.name}
-  Email: ${input.email}
+  Email: ${input.email}${input.tempPassword ? `\n  Temporary password: ${input.tempPassword}` : ""}
   Role:  ${input.role}
-${textSteps}
+${input.tempPassword ? "\nKeep this password private and change it after your first sign-in.\n" : ""}${textSteps}
 Sign in here: ${loginLink}
 
 If you weren't expecting this, contact your site administrator at ${brand.email}.

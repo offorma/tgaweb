@@ -211,6 +211,25 @@ describe("sendWelcomeEmail()", () => {
     expect(mail.text).toContain("EDITOR");
   });
 
+  it("includes the temporary password (escaped) in the HTML and text", async () => {
+    const { sendWelcomeEmail } = await freshEmail();
+    await sendWelcomeEmail({
+      to: "new@school.test",
+      name: "New Teacher",
+      email: "new@school.test",
+      role: "ADMIN",
+      tempPassword: "Tmp<Pa55>&!x",
+      mustChangePassword: true,
+    });
+    const mail = lastMail();
+    expect(mail.html).toContain("Temporary password");
+    expect(mail.html).toContain("Tmp&lt;Pa55&gt;&amp;!x"); // escaped
+    expect(mail.html).not.toContain("Tmp<Pa55>"); // raw not present
+    expect(mail.text).toContain("Temporary password: Tmp<Pa55>&!x");
+    // first-step copy switches to "below" when the password is in the email
+    expect(mail.html.toLowerCase()).toContain("temporary password below");
+  });
+
   it("omits the first-steps checklist when nothing is required", async () => {
     const { sendWelcomeEmail } = await freshEmail();
     await sendWelcomeEmail({
