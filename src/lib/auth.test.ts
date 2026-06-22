@@ -75,6 +75,7 @@ function baseUser(overrides: Record<string, any> = {}) {
     twoFactorSecret: null,
     twoFactorBackupCodes: null,
     mustEnable2FA: false,
+    mustChangePassword: false,
     ...overrides,
   };
 }
@@ -395,11 +396,24 @@ describe("authorize — full success (no 2FA)", () => {
       email: "admin@school.test",
       name: "Admin",
       role: "ADMIN",
+      mustChangePassword: false,
+      mustEnable2FA: false,
     });
     expect(h.recordSuccessfulLogin).toHaveBeenCalledWith("u1");
     expect(h.writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "login.success" })
     );
+  });
+
+  it("propagates mustChangePassword onto the returned identity (forced-change enforcement)", async () => {
+    h.userFindUnique.mockResolvedValue(baseUser({ mustChangePassword: true }));
+    const res = await authorize(
+      { email: "admin@school.test", password: "password1" },
+      baseReq
+    );
+    // The jwt callback copies this onto the token; the middleware reads it to
+    // force the password change. If it's dropped here, enforcement never fires.
+    expect(res).toMatchObject({ id: "u1", mustChangePassword: true });
   });
 });
 

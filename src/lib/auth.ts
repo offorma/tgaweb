@@ -278,6 +278,11 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          // Carry these through so the jwt callback can put them on the token —
+          // the middleware reads token.mustChangePassword / mustEnable2FA to
+          // enforce the forced password change and forced 2FA setup.
+          mustChangePassword: user.mustChangePassword,
+          mustEnable2FA: user.mustEnable2FA,
         } as any;
       },
     }),
