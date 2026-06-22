@@ -15,6 +15,7 @@ import {
   verifyBackupCode,
   encryptBackupCodes,
 } from "@/lib/two-factor";
+import { DEFAULT_ADMIN_PASSWORD } from "@/lib/default-credentials";
 
 export const authOptions: NextAuthOptions = {
   // Use JWT session strategy — works for stateless deployments
@@ -157,6 +158,23 @@ export const authOptions: NextAuthOptions = {
           const err: any = new Error(`ACCOUNT_LOCKED:${mins}`);
           err.code = "ACCOUNT_LOCKED";
           throw err;
+        }
+
+        // Force a password change if the account is still using the publicly-known
+        // default seed password. Catches pre-existing accounts that were created
+        // before this was enforced; self-clears once they pick a real password.
+        if (credentials.password === DEFAULT_ADMIN_PASSWORD && !user.mustChangePassword) {
+          await db.user.update({
+            where: { id: user.id },
+            data: { mustChangePassword: true },
+          });
+          user.mustChangePassword = true;
+          await writeAuditLog({
+            userId: user.id,
+            action: "login.default-password-flagged",
+            ip,
+            userAgent,
+          });
         }
 
         // Check security policy for 2FA enforcement

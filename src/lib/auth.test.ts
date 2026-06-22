@@ -415,6 +415,33 @@ describe("authorize — full success (no 2FA)", () => {
     // force the password change. If it's dropped here, enforcement never fires.
     expect(res).toMatchObject({ id: "u1", mustChangePassword: true });
   });
+
+  it("flags mustChangePassword when logging in with the default seed password", async () => {
+    h.userFindUnique.mockResolvedValue(baseUser({ mustChangePassword: false }));
+    const res = await authorize(
+      { email: "admin@school.test", password: "TrailGliders2026!" },
+      baseReq
+    );
+    expect(h.userUpdate).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { mustChangePassword: true },
+    });
+    expect(res).toMatchObject({ mustChangePassword: true });
+    expect(h.writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "login.default-password-flagged" })
+    );
+  });
+
+  it("does not flag a non-default password", async () => {
+    h.userFindUnique.mockResolvedValue(baseUser({ mustChangePassword: false }));
+    await authorize(
+      { email: "admin@school.test", password: "a-real-password!" },
+      baseReq
+    );
+    expect(h.userUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { mustChangePassword: true } })
+    );
+  });
 });
 
 describe("callbacks", () => {

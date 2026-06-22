@@ -18,6 +18,11 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { encryptSecret, isMasterKeyConfigured } from "../src/lib/secrets";
+import {
+  DEFAULT_ADMIN_EMAIL,
+  DEFAULT_ADMIN_NAME,
+  DEFAULT_ADMIN_PASSWORD,
+} from "../src/lib/default-credentials";
 import { seedEmailSecrets } from "./seed-email-secrets";
 
 const db = new PrismaClient();
@@ -31,9 +36,9 @@ function slugify(text: string): string {
 }
 
 const DEFAULT_ADMIN = {
-  email: "admin@trailglidersacademy.com.ng",
-  name: "Site Administrator",
-  password: "TrailGliders2026!",
+  email: DEFAULT_ADMIN_EMAIL,
+  name: DEFAULT_ADMIN_NAME,
+  password: DEFAULT_ADMIN_PASSWORD,
 };
 
 const force = process.argv.includes("--force");
@@ -70,6 +75,8 @@ async function main() {
       name: DEFAULT_ADMIN.name,
       passwordHash,
       role: "ADMIN",
+      // The default password is public — force a change on first login.
+      mustChangePassword: true,
     },
   });
   console.log(`  ✓ Admin user: ${admin.email} (id: ${admin.id})`);
