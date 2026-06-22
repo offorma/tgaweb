@@ -235,6 +235,21 @@ log "  ✓ Orphan reap complete (${reaped} reaped)"
 # ─── STEP 4: Restart the Node.js app ───────────────────────────────────────
 step "4/5  Restarting Node.js application"
 
+# Prisma's library query engine starts background Tokio threads that do NOT
+# survive fork(). Passenger's default "smart" spawning preloads the app and then
+# forks workers, leaving the forked engine's timer thread gone → every DB query
+# panics with "PANIC: timer has gone away" (the app boots but 500s on all data).
+# Force direct spawning so each worker boots the engine fresh in its own process.
+HTACCESS="$APP_ROOT/.htaccess"
+if [ -f "$HTACCESS" ] || touch "$HTACCESS" 2>/dev/null; then
+  if ! grep -qi "PassengerSpawnMethod" "$HTACCESS" 2>/dev/null; then
+    printf '\n# Prisma engine threads do not survive fork(); start each worker fresh.\nPassengerSpawnMethod direct\nPassengerMaxPreloaderIdleTime 0\n' >> "$HTACCESS"
+    log "  ✓ Set 'PassengerSpawnMethod direct' in .htaccess (prevents Prisma fork panic)"
+  else
+    log "  ✓ PassengerSpawnMethod already set in .htaccess"
+  fi
+fi
+
 # Method A: Touch the restart file (works on most cPanel Node setups)
 RESTART_FILE="$APP_ROOT/tmp/restart.txt"
 mkdir -p "$APP_ROOT/tmp"
