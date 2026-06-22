@@ -56,19 +56,36 @@ function LoginForm() {
 
     setLoading(false);
 
-    if (result?.error === "2FA_REQUIRED") {
-      // Server says: 2FA is required for this account. Show the 2FA input.
+    const err = result?.error;
+
+    if (err === "2FA_REQUIRED") {
+      // Password was correct — this account has 2FA. Show the code input.
       setNeedsTwoFactor(true);
       setError(null);
       return;
     }
 
-    if (result?.error) {
-      if (needsTwoFactor) {
-        setError("Invalid 2FA code. Please try again.");
-      } else {
+    if (err) {
+      if (err === "INVALID_2FA") {
+        // Stay on the 2FA step so they can re-enter the code.
+        setNeedsTwoFactor(true);
+        setError("Invalid or expired code. Please try again.");
+      } else if (err.startsWith("ACCOUNT_LOCKED")) {
+        const mins = err.split(":")[1] || "15";
+        setNeedsTwoFactor(false);
+        setTotp("");
         setError(
-          "Invalid credentials. If you've forgotten your password, use the link below."
+          `Too many failed attempts — this account is locked. Try again in about ${mins} minute${mins === "1" ? "" : "s"}, or reset your password below.`
+        );
+      } else if (err === "ACCOUNT_INACTIVE") {
+        setNeedsTwoFactor(false);
+        setError("This account has been deactivated. Contact a site administrator.");
+      } else if (needsTwoFactor) {
+        setError("Invalid or expired code. Please try again.");
+      } else {
+        // Wrong email or password — kept generic on purpose (no user enumeration).
+        setError(
+          "Invalid email or password. If you've forgotten it, use the link below."
         );
       }
       return;

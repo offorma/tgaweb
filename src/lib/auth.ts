@@ -128,7 +128,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Check if account is active
+        // Check if account is active. (Password already verified above, so it's
+        // safe to reveal this specific reason — no user-enumeration risk here.)
         if (!user.isActive) {
           await writeAuditLog({
             action: "login.inactive",
@@ -136,10 +137,13 @@ export const authOptions: NextAuthOptions = {
             ip,
             userAgent,
           });
-          return null;
+          const err: any = new Error("ACCOUNT_INACTIVE");
+          err.code = "ACCOUNT_INACTIVE";
+          throw err;
         }
 
-        // Check lockout
+        // Check lockout — surface the remaining minutes so the UI can tell the
+        // user when to try again (rather than a generic "invalid credentials").
         const lockRemaining = await getLockoutRemaining(user.id);
         if (lockRemaining > 0) {
           await writeAuditLog({
@@ -149,7 +153,10 @@ export const authOptions: NextAuthOptions = {
             userAgent,
             meta: `locked for ${lockRemaining}s`,
           });
-          return null;
+          const mins = Math.max(1, Math.ceil(lockRemaining / 60));
+          const err: any = new Error(`ACCOUNT_LOCKED:${mins}`);
+          err.code = "ACCOUNT_LOCKED";
+          throw err;
         }
 
         // Check security policy for 2FA enforcement
@@ -233,7 +240,18 @@ export const authOptions: NextAuthOptions = {
               ip,
               userAgent,
             });
-            return null;
+            // If that failure tripped the lockout, tell them they're locked;
+            // otherwise tell them the 2FA code was wrong (keep them on the 2FA step).
+            const remaining = await getLockoutRemaining(user.id);
+            if (remaining > 0) {
+              const mins = Math.max(1, Math.ceil(remaining / 60));
+              const lerr: any = new Error(`ACCOUNT_LOCKED:${mins}`);
+              lerr.code = "ACCOUNT_LOCKED";
+              throw lerr;
+            }
+            const err: any = new Error("INVALID_2FA");
+            err.code = "INVALID_2FA";
+            throw err;
           }
 
           await writeAuditLog({

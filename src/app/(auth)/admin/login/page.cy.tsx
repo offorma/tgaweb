@@ -120,7 +120,7 @@ describe("<AdminLoginPage />", () => {
     cy.get("#password").type("wrongpass");
     cy.get("button[type=submit]").click();
     cy.wait("@callback");
-    cy.contains("Invalid credentials").should("be.visible");
+    cy.contains("Invalid email or password").should("be.visible");
     cy.get("@push").should("not.have.been.called");
   });
 
@@ -173,11 +173,41 @@ describe("<AdminLoginPage />", () => {
 
     cy.intercept("POST", "**/api/auth/callback/credentials*", {
       statusCode: 401,
-      body: { url: "http://localhost:8080/api/auth/error?error=CredentialsSignin" },
+      body: { url: "http://localhost:8080/api/auth/error?error=INVALID_2FA" },
     }).as("callback2");
     cy.get("#totp").type("000000");
     cy.get("button[type=submit]").click();
     cy.wait("@callback2");
-    cy.contains("Invalid 2FA code").should("be.visible");
+    cy.contains("Invalid or expired code").should("be.visible");
+    // stays on the 2FA step
+    cy.get("#totp").should("exist");
+  });
+
+  it("shows a lockout message with the remaining minutes", () => {
+    cy.intercept("POST", "**/api/auth/callback/credentials*", {
+      statusCode: 401,
+      body: { url: "http://localhost:8080/api/auth/error?error=ACCOUNT_LOCKED:15" },
+    }).as("callback");
+    mountLogin();
+    cy.get("#email").type("admin@trailgliders.edu.ng");
+    cy.get("#password").type("password123");
+    cy.get("button[type=submit]").click();
+    cy.wait("@callback");
+    cy.contains("locked").should("be.visible");
+    cy.contains("15 minutes").should("be.visible");
+    cy.get("@push").should("not.have.been.called");
+  });
+
+  it("shows a deactivated-account message", () => {
+    cy.intercept("POST", "**/api/auth/callback/credentials*", {
+      statusCode: 401,
+      body: { url: "http://localhost:8080/api/auth/error?error=ACCOUNT_INACTIVE" },
+    }).as("callback");
+    mountLogin();
+    cy.get("#email").type("admin@trailgliders.edu.ng");
+    cy.get("#password").type("password123");
+    cy.get("button[type=submit]").click();
+    cy.wait("@callback");
+    cy.contains("deactivated").should("be.visible");
   });
 });

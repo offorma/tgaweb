@@ -168,26 +168,22 @@ describe("authorize — credentials check", () => {
     expect(h.recordFailedLogin).toHaveBeenCalledWith("u1");
   });
 
-  it("returns null + audits when the account is inactive", async () => {
+  it("throws ACCOUNT_INACTIVE + audits when the account is inactive", async () => {
     h.userFindUnique.mockResolvedValue(baseUser({ isActive: false }));
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize({ email: "admin@school.test", password: "password1" }, baseReq)
+    ).rejects.toMatchObject({ code: "ACCOUNT_INACTIVE" });
     expect(h.writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "login.inactive" })
     );
   });
 
-  it("returns null + audits when the account is locked", async () => {
+  it("throws ACCOUNT_LOCKED (with minutes) + audits when the account is locked", async () => {
     h.userFindUnique.mockResolvedValue(baseUser());
     h.getLockoutRemaining.mockResolvedValue(120);
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize({ email: "admin@school.test", password: "password1" }, baseReq)
+    ).rejects.toThrow("ACCOUNT_LOCKED:2");
     expect(h.writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "login.locked" })
     );
@@ -260,23 +256,40 @@ describe("authorize — 2FA verification", () => {
     );
     h.decryptTwoFactorSecret.mockReturnValue("plain");
     h.verifyTwoFactorToken.mockReturnValue(false); // TOTP mismatch
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1", totp: "000000" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "000000" },
+        baseReq
+      )
+    ).rejects.toMatchObject({ code: "INVALID_2FA" });
     expect(h.recordFailedLogin).toHaveBeenCalledWith("u1");
+  });
+
+  it("throws ACCOUNT_LOCKED if a wrong 2FA code trips the lockout", async () => {
+    h.userFindUnique.mockResolvedValue(
+      baseUser({ twoFactorEnabled: true, twoFactorSecret: "enc", twoFactorBackupCodes: null })
+    );
+    h.decryptTwoFactorSecret.mockReturnValue("plain");
+    h.verifyTwoFactorToken.mockReturnValue(false);
+    h.getLockoutRemaining.mockResolvedValue(300); // recordFailedLogin tripped the lock
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "000000" },
+        baseReq
+      )
+    ).rejects.toThrow("ACCOUNT_LOCKED:5");
   });
 
   it("fails a backup-format code when the account has no stored backup codes", async () => {
     h.userFindUnique.mockResolvedValue(
       baseUser({ twoFactorEnabled: true, twoFactorSecret: "enc", twoFactorBackupCodes: null })
     );
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1", totp: "abcd-1234" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "abcd-1234" },
+        baseReq
+      )
+    ).rejects.toMatchObject({ code: "INVALID_2FA" });
     expect(h.decryptBackupCodes).not.toHaveBeenCalled();
   });
 
@@ -287,11 +300,12 @@ describe("authorize — 2FA verification", () => {
     h.decryptTwoFactorSecret.mockImplementation(() => {
       throw new Error("decrypt fail");
     });
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1", totp: "123456" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "123456" },
+        baseReq
+      )
+    ).rejects.toMatchObject({ code: "INVALID_2FA" });
     expect(h.recordFailedLogin).toHaveBeenCalledWith("u1");
     expect(h.writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "login.2fa.failed" })
@@ -323,31 +337,34 @@ describe("authorize — 2FA verification", () => {
     h.decryptBackupCodes.mockImplementation(() => {
       throw new Error("boom");
     });
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1", totp: "abcd-1234" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "abcd-1234" },
+        baseReq
+      )
+    ).rejects.toMatchObject({ code: "INVALID_2FA" });
   });
 
   it("fails when backup code does not match (idx < 0)", async () => {
     h.userFindUnique.mockResolvedValue(userWith2FA());
     h.decryptBackupCodes.mockReturnValue(["x"]);
     h.verifyBackupCode.mockReturnValue(-1);
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1", totp: "abcd-1234" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "abcd-1234" },
+        baseReq
+      )
+    ).rejects.toMatchObject({ code: "INVALID_2FA" });
   });
 
   it("fails when an invalid-format 2FA code is given", async () => {
     h.userFindUnique.mockResolvedValue(userWith2FA());
-    const res = await authorize(
-      { email: "admin@school.test", password: "password1", totp: "!!!" },
-      baseReq
-    );
-    expect(res).toBeNull();
+    await expect(
+      authorize(
+        { email: "admin@school.test", password: "password1", totp: "!!!" },
+        baseReq
+      )
+    ).rejects.toMatchObject({ code: "INVALID_2FA" });
     expect(h.writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "login.2fa.failed" })
     );
