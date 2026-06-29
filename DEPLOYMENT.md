@@ -168,8 +168,9 @@ writing a history row only, running no SQL — then continues. Nothing to do by 
 > Manual equivalent, if ever needed (via a tunnel to prod):
 > `DATABASE_URL=… npx prisma migrate resolve --applied 0_init`
 
-> **Staging** (`staging.yml`) still uses `prisma db push --accept-data-loss` (disposable
-> data). Switch it the same way if you want parity.
+> **Staging** (`staging.yml`) uses the same `migrate deploy` + auto-baseline flow, but
+> **non-blocking** — a not-yet-configured staging DB warns instead of failing the PR
+> preview. (No pre-change backup on staging, since its data is disposable.)
 
 ---
 
