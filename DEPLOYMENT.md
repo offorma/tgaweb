@@ -69,8 +69,11 @@ Push to `main` -- the workflow in `.github/workflows/deploy.yml` handles everyth
 2. Generates and bundles Prisma client (with Linux query engine binaries)
 3. Compiles TypeScript scripts to `scripts/dist/` (runnable with plain `node`)
 4. Uploads tarball to cPanel via SCP
-5. Pushes database schema via `prisma db push`
-6. Restarts the app via Passenger
+5. **Backs up the production database** (`pg_dump`) — kept as a 30-day run artifact (`db-backup-<run id>`) and copied to `backups/db/` on the server
+6. Applies schema changes via **`prisma migrate deploy`** — only *pending* migrations, never resets/drops/seeds; auto-baselines the initial migration on first run (see **Database migrations** below)
+7. Restarts the app via Passenger
+
+> **Deploys never seed.** Seeding runs once, manually, on the first deploy (Step 4). Every later deploy keeps all existing data and only applies pending schema migrations. See **Database migrations** and **Database backups & restore** below.
 
 **Required GitHub Secrets** (Settings > Secrets and variables > Actions):
 
@@ -137,6 +140,69 @@ Or run the all-in-one migration script:
 node scripts/dist/migrate.js
 ```
 
+> ⚠️ Run seed scripts **only on the first deploy** (empty DB). Do **not** re-run them on a
+> populated production DB, and never use `seed.js --force` there — it wipes and recreates data.
+
+---
+
+## Database migrations
+
+Schema changes are tracked as **Prisma migrations** (`prisma/migrations/`) and applied
+in production with `prisma migrate deploy` — it runs only *pending* migrations and never
+resets, drops, or seeds. This replaced the old `prisma db push` flow.
+
+**Make a schema change (local dev):**
+```bash
+# edit prisma/schema.prisma, then:
+npm run db:migrate -- --name describe_your_change   # creates prisma/migrations/<ts>_describe_your_change
+git add prisma/migrations && git commit             # commit the migration with your code
+```
+On the next deploy, CI applies it automatically. New columns/tables merge into existing
+data; a migration that drops data does exactly (and only) what its SQL says — review it.
+
+**First-run baseline (automatic).** The production DB predates migrations (it was built
+with `db push`), so it has the tables but no history. The deploy detects this once
+(Prisma error **P3005**) and marks the initial migration `0_init` as already-applied —
+writing a history row only, running no SQL — then continues. Nothing to do by hand.
+
+> Manual equivalent, if ever needed (via a tunnel to prod):
+> `DATABASE_URL=… npx prisma migrate resolve --applied 0_init`
+
+> **Staging** (`staging.yml`) still uses `prisma db push --accept-data-loss` (disposable
+> data). Switch it the same way if you want parity.
+
+---
+
+## Database backups & restore
+
+Every deploy snapshots the production database **before** any schema change
+(`pg_dump -Fc`, custom/restorable format). Two copies are kept:
+
+- **GitHub Actions artifact** `db-backup-<run id>` (30-day retention) — download from the run page.
+- **On-server** `~/<app>/backups/db/tga-prod-<sha>-<timestamp>.dump` (last 10 kept).
+
+Schema changes apply **non-destructively**: additive changes (new tables / columns /
+indexes) merge into the existing data; a change that *would* drop data **fails the
+deploy** (data untouched) so it can be handled deliberately. A failed backup also
+aborts the deploy — the schema is never changed without a fresh backup.
+
+### Restore a backup
+
+```bash
+export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH
+DB='postgresql://USER:PASS@127.0.0.200:5432/DB?schema=public'
+
+# Inspect the dump first (optional):
+pg_restore --list backups/db/tga-prod-<sha>-<ts>.dump | head
+
+# Restore into the existing database (drops & recreates objects from the dump):
+pg_restore --no-owner --no-privileges --clean --if-exists -d "$DB" \
+  backups/db/tga-prod-<sha>-<ts>.dump
+```
+
+> For an intentionally destructive schema change, confirm a backup exists, then apply it
+> by hand (`psql`) or add a Prisma migration — don't re-enable `--accept-data-loss` in CI.
+
 ---
 
 ## Running scripts on cPanel
@@ -150,7 +216,9 @@ node scripts/dist/migrate.js
 | Security migration | `npm run migrate:security` | `node scripts/dist/migrate-security.js` |
 | Full migration | `npm run migrate` | `node scripts/dist/migrate.js` |
 | Backfill slugs | `npm run backfill:slugs` | `node scripts/dist/backfill-slugs.js` |
-| Push schema | `npm run db:push` | `npx prisma db push --skip-generate` |
+| Create a migration | `npm run db:migrate -- --name <change>` | — (commit & deploy) |
+| Apply migrations | `npm run db:migrate:deploy` | `npx prisma migrate deploy` |
+| Push schema (legacy / non-prod) | `npm run db:push` | `npx prisma db push --skip-generate` |
 | Re-seed (wipe + recreate) | `npm run db:seed -- --force` | `node scripts/dist/seed.js --force` |
 
 **Always export `DATABASE_URL` first** when running scripts via SSH:

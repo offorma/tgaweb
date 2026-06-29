@@ -272,11 +272,51 @@ jobs:
             echo \"Static files copied to \$PUBLIC_HTML\"
           "
 
-      - name: Push database schema (from runner via SSH tunnel)
+      - name: Backup production database (before any schema change)
+        run: |
+          # Safety net: snapshot the prod DB *before* touching the schema, so the data
+          # can always be restored if a change goes wrong. Same SSH-tunnel approach as
+          # the schema push. A failed backup aborts the deploy on purpose — we never
+          # change the schema without a fresh backup in hand.
+          set -e
+          PROD_URL='${{ secrets.PROD_DATABASE_URL }}'
+          [ -n "$PROD_URL" ] || { echo "::error title=Missing secret::PROD_DATABASE_URL is empty — set it in the repo secrets."; exit 1; }
+          DBHOST=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$PROD_URL")
+          DBPORT=$(node -e "const u=new URL(process.argv[1]);process.stdout.write(u.port||'5432')" "$PROD_URL")
+          case "$DBHOST" in localhost|::1|"") DBHOST=127.0.0.1 ;; esac
+          # Own tunnel on :5434 (the schema-push step uses :5433).
+          ssh -fN -o ExitOnForwardFailure=yes -L 5434:"$DBHOST":"$DBPORT" cpanel
+          TUNNEL_URL=$(node -e "const u=new URL(process.argv[1]);u.hostname='127.0.0.1';u.port='5434';process.stdout.write(u.toString())" "$PROD_URL")
+          # ubuntu-latest already ships postgresql-client; ensure it's present.
+          # (Client must be >= the server's major version to dump it.)
+          sudo apt-get install -y -qq postgresql-client >/dev/null 2>&1 || true
+          mkdir -p db-backups
+          TS=$(date -u +%Y%m%dT%H%M%SZ)
+          DUMP="db-backups/tga-prod-${GITHUB_SHA::7}-$TS.dump"
+          # Custom format (-Fc): compressed and restorable with `pg_restore`.
+          pg_dump --no-owner --no-privileges -Fc "$TUNNEL_URL" -f "$DUMP"
+          echo "DB_BACKUP_FILE=$DUMP" >> "$GITHUB_ENV"
+          ls -lh "$DUMP"
+          # Best-effort on-server copy next to the release rollbacks (pruned to last 10).
+          # Never blocks the deploy — the artifact upload below is the durable copy.
+          ( ssh cpanel "mkdir -p '${{ secrets.CPANEL_PATH }}/backups/db'" \
+            && scp "$DUMP" "cpanel:${{ secrets.CPANEL_PATH }}/backups/db/" \
+            && ssh cpanel "ls -t '${{ secrets.CPANEL_PATH }}/backups/db/'*.dump 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true" ) \
+            || echo "::warning title=On-server DB backup copy failed::The artifact backup was still created."
+
+      - name: Upload database backup (artifact)
+        if: ${{ env.DB_BACKUP_FILE != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: ${{ env.DB_BACKUP_FILE }}
+          retention-days: 30
+
+      - name: Apply database migrations (from runner via SSH tunnel)
         run: |
           # The runner has a complete, working Prisma; the cPanel server does not.
           # Forward runner:5433 -> the prod Postgres (reachable only from the server),
-          # then push the schema from here. The server never runs Prisma.
+          # then apply committed migrations from here. The server never runs Prisma.
           set -e
           PROD_URL='${{ secrets.PROD_DATABASE_URL }}'
           [ -n "$PROD_URL" ] || { echo "::error title=Missing secret::PROD_DATABASE_URL is empty — set it in the repo secrets."; exit 1; }
@@ -287,12 +327,25 @@ jobs:
           case "$DBHOST" in localhost|::1|"") DBHOST=127.0.0.1 ;; esac
           ssh -fN -o ExitOnForwardFailure=yes -L 5433:"$DBHOST":"$DBPORT" cpanel
           TUNNEL_URL=$(node -e "const u=new URL(process.argv[1]);u.hostname='127.0.0.1';u.port='5433';process.stdout.write(u.toString())" "$PROD_URL")
-          if DATABASE_URL="$TUNNEL_URL" npx prisma db push --skip-generate --accept-data-loss; then
-            echo 'Database schema pushed via SSH tunnel'
-          else
-            echo '::error title=DB schema push failed::prisma db push (via SSH tunnel) failed — the schema is NOT up to date. The app will 500 on missing tables.'
-            exit 1
+          # `migrate deploy` applies only *pending* migrations — it never resets, drops,
+          # or seeds. Existing data is preserved and new migrations merge in.
+          #
+          # First adoption: a database created in the old `db push` era already has the
+          # tables but no migration history, so `migrate deploy` aborts with P3005
+          # ("schema is not empty"). We detect that once and baseline 0_init as
+          # already-applied (writes a history row only — runs no SQL), then deploy.
+          if ! DATABASE_URL="$TUNNEL_URL" npx prisma migrate deploy 2> migrate-err.log; then
+            cat migrate-err.log
+            if grep -q "P3005" migrate-err.log; then
+              echo 'Pre-existing database detected — baselining 0_init as applied…'
+              DATABASE_URL="$TUNNEL_URL" npx prisma migrate resolve --applied 0_init
+              DATABASE_URL="$TUNNEL_URL" npx prisma migrate deploy
+            else
+              echo '::error title=Migration failed::prisma migrate deploy failed. No data was lost — a pre-change backup exists (run artifact "db-backup-<run id>" + server backups/db/). See the log above.'
+              exit 1
+            fi
           fi
+          echo 'Database migrations applied via SSH tunnel'
 
       - name: Run post-deploy script
         timeout-minutes: 15
