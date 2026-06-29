@@ -286,7 +286,9 @@ jobs:
           case "$DBHOST" in localhost|::1|"") DBHOST=127.0.0.1 ;; esac
           # Own tunnel on :5434 (the schema-push step uses :5433).
           ssh -fN -o ExitOnForwardFailure=yes -L 5434:"$DBHOST":"$DBPORT" cpanel
-          TUNNEL_URL=$(node -e "const u=new URL(process.argv[1]);u.hostname='127.0.0.1';u.port='5434';process.stdout.write(u.toString())" "$PROD_URL")
+          # pg_dump (libpq) rejects Prisma-only query params like ?schema=public — strip
+          # them, keeping host/port/creds (and any sslmode) that Prisma already uses.
+          DUMP_URL=$(node -e "const u=new URL(process.argv[1]);u.hostname='127.0.0.1';u.port='5434';['schema','connection_limit','pool_timeout','pgbouncer','socket_timeout','statement_cache_size'].forEach(p=>u.searchParams.delete(p));process.stdout.write(u.toString())" "$PROD_URL")
           # ubuntu-latest already ships postgresql-client; ensure it's present.
           # (Client must be >= the server's major version to dump it.)
           sudo apt-get install -y -qq postgresql-client >/dev/null 2>&1 || true
@@ -294,7 +296,7 @@ jobs:
           TS=$(date -u +%Y%m%dT%H%M%SZ)
           DUMP="db-backups/tga-prod-${GITHUB_SHA::7}-$TS.dump"
           # Custom format (-Fc): compressed and restorable with `pg_restore`.
-          pg_dump --no-owner --no-privileges -Fc "$TUNNEL_URL" -f "$DUMP"
+          pg_dump --no-owner --no-privileges -Fc "$DUMP_URL" -f "$DUMP"
           echo "DB_BACKUP_FILE=$DUMP" >> "$GITHUB_ENV"
           ls -lh "$DUMP"
           # Best-effort on-server copy next to the release rollbacks (pruned to last 10).
